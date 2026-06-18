@@ -8,6 +8,7 @@ interface DashboardTabProps {
   keywords: KeywordTrend[];
   alerts: SystemAlert[];
   schedulerActive: boolean;
+  schedulerInterval?: number;
   onRefresh: () => void;
   onSelectQuestion: (id: string) => void;
 }
@@ -17,6 +18,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   keywords,
   alerts,
   schedulerActive,
+  schedulerInterval = 10,
   onRefresh,
   onSelectQuestion
 }) => {
@@ -55,7 +57,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <span className={`relative inline-flex rounded-full h-3.5 w-3.5 ${schedulerActive ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
             </span>
             <h2 className="text-sm font-semibold text-gray-800">
-              {schedulerActive ? '실시간 스케줄러 수집 작동 중 (15분 주기)' : '수집 스케줄러 일시 정지됨'}
+              {schedulerActive ? `실시간 스케줄러 수집 작동 중 (${schedulerInterval}분 주기)` : '수집 스케줄러 일시 정지됨'}
             </h2>
           </div>
           <p className="text-xs text-gray-500 mt-1">네이버, 다음, 디시, 펨코, 인벤, 보배드림 등 8대 매체 전기차 질문 상시 관측</p>

@@ -41,22 +41,49 @@
           }
         }, true);
 
-        // Monkeypatch WebSocket to suppress internal connection error logs
+        // Monkeypatch WebSocket to suppress internal connection error logs by returning a clean mock WebSocket
         const OriginalWebSocket = window.WebSocket;
         if (OriginalWebSocket) {
-          class PatchedWebSocket extends OriginalWebSocket {
-            constructor(url, protocols) {
-              super(url, protocols);
-              this.addEventListener("error", (e) => {
-                const urlStr = String(url || "");
-                if (isBenignNoise(urlStr)) {
-                  e.preventDefault();
-                  e.stopImmediatePropagation();
-                }
-              }, true);
+          window.WebSocket = function PatchedWebSocket(url, protocols) {
+            const urlStr = String(url || "");
+            if (
+              urlStr.includes("vite") || 
+              urlStr.includes("ws://") || 
+              urlStr.includes("wss://") || 
+              urlStr.includes("localhost") || 
+              protocols === "vite-hmr"
+            ) {
+              console.log("[PatchedWebSocket] Intercepted and blocked HMR WebSocket connection: ", url);
+              
+              const mockSocket = {
+                url: url,
+                readyState: 3, // CLOSED state
+                bufferedAmount: 0,
+                extensions: "",
+                protocol: "",
+                binaryType: "blob",
+                onopen: null,
+                onmessage: null,
+                onerror: null,
+                onclose: null,
+                addEventListener: function(type, listener) {
+                  if (type === 'close' && listener) {
+                    setTimeout(() => {
+                      try {
+                        listener({ type: 'close', wasClean: true, code: 1000, reason: "Suppressed HMR" });
+                      } catch (e) {}
+                    }, 50);
+                  }
+                },
+                removeEventListener: function() {},
+                send: function() {},
+                close: function() {}
+              };
+              return mockSocket;
             }
-          }
-          window.WebSocket = PatchedWebSocket;
+            return new OriginalWebSocket(url, protocols);
+          };
+          window.WebSocket.prototype = OriginalWebSocket.prototype;
         }
       })();
     </script>

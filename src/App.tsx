@@ -491,6 +491,7 @@ export default function App() {
               keywords={keywords}
               alerts={alerts}
               schedulerActive={scheduler.isRunning}
+              schedulerInterval={scheduler.intervalMinutes}
               onRefresh={fetchAllStates}
               onSelectQuestion={handleSelectQuestion}
             />
