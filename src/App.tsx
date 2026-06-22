@@ -139,10 +139,14 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState('');
 
   // 1. Fetch entire state from backend APIs with fallback fallback mechanisms
-  const fetchAllStates = useCallback(async () => {
+  const fetchAllStates = useCallback(async (forceScrape = false) => {
     setIsLoading(true);
     setErrorMessage('');
     try {
+      if (forceScrape) {
+        console.log('[Realtime Scraper] Client requested manual real-time crawl trigger.');
+        await fetch('/api/scraper/trigger', { method: 'POST' }).catch(() => null);
+      }
       const [questionsRes, keywordsRes, schedulerRes, logsRes, rulesRes, alertsRes] = await Promise.all([
         fetch('/api/questions').catch(() => null),
         fetch('/api/keywords').catch(() => null),
@@ -201,11 +205,24 @@ export default function App() {
 
   useEffect(() => {
     fetchAllStates();
-    // Refresh alerts & questions every 12 seconds to simulate daemon crawler progress
+    // Refresh alerts & questions every 12 seconds with error shielding to prevent uncaught "Failed to fetch" rejections
     const timer = setInterval(() => {
-      fetch('/api/questions').then(r => r.json()).then(data => setQuestions(data));
-      fetch('/api/alerts').then(r => r.json()).then(data => setAlerts(data));
-      fetch('/api/keywords').then(r => r.json()).then(data => setKeywords(data));
+      const safeBackgroundFetch = async (url: string, updater: (data: any) => void) => {
+        try {
+          const res = await fetch(url);
+          if (res && res.ok) {
+            const data = await res.json();
+            if (data) updater(data);
+          }
+        } catch (e) {
+          // Gracefully swallow network interruptions during builds/restarts
+          console.debug(`[Background Polling Suppressed exception for ${url}]:`, e);
+        }
+      };
+
+      safeBackgroundFetch('/api/questions', setQuestions);
+      safeBackgroundFetch('/api/alerts', setAlerts);
+      safeBackgroundFetch('/api/keywords', setKeywords);
     }, 12000);
     return () => clearInterval(timer);
   }, [fetchAllStates]);
@@ -492,7 +509,7 @@ export default function App() {
               alerts={alerts}
               schedulerActive={scheduler.isRunning}
               schedulerInterval={scheduler.intervalMinutes}
-              onRefresh={fetchAllStates}
+              onRefresh={() => fetchAllStates(true)}
               onSelectQuestion={handleSelectQuestion}
             />
           )}
