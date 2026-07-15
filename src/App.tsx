@@ -72,6 +72,67 @@ const FALLBACK_QUESTIONS: ScrapedQuestion[] = [
     isAnomaly: true,
     promoStatus: "none",
     views: 1120
+  },
+  {
+    id: "q-5",
+    portal: "daum_tip",
+    title: "공공기관 전기차 충전기 고장 나면 어디 고장신고 하나요?",
+    content: "근처 주민센터 공영주차장 완속 충전기 액정이 꺼져 있고 카드를 태그해도 인식이 전혀 안 되더라고요. 주민센터 직원한테 물어보니 자기 관할 아니라고 하는데 신속하게 해결하는 곳이 어디인가요?",
+    author: "민원왕",
+    url: "https://tip.daum.net/question/109827",
+    scrapedAt: new Date(Date.now() - 3600000 * 12.3).toISOString(),
+    category: "고장/불만",
+    keywords: ["충전기 고장", "고장 신고", "공영주차장", "작동 에러"],
+    anomalyScore: 30,
+    isAnomaly: false,
+    promoStatus: "none",
+    views: 74
+  },
+  {
+    id: "q-6",
+    portal: "fmkorea",
+    title: "야간 아파트 충전소 요금이 주간보다 확실히 싼가요? 전기세 한전 요금표 정리된 거 있냐?",
+    content: "전기차 뽑은 지 일주일 차 뉴비인데 밤 11시 이후 경부하 시간대에 충전하면 정말 누진세 안 붙고 싸게 먹히는 건지요? 아파트 공용 요금 고지서 보니까 봄철 가을철 여름철 요금이 다 다르고 복잡해서 이해가 안 가네요.",
+    author: "충전비절약맨",
+    url: "https://m.fmkorea.com/best/6792348",
+    scrapedAt: new Date(Date.now() - 3600000 * 18.5).toISOString(),
+    category: "요금/효율",
+    keywords: ["경부하 요금", "전기료 절감", "야간 충전", "계절별 전기요금"],
+    anomalyScore: 15,
+    isAnomaly: false,
+    promoStatus: "none",
+    views: 520
+  },
+  {
+    id: "q-7",
+    portal: "inven",
+    title: "전기차 충전케이블 피복 벗겨져 구리선 보이는데 꽂아도 됨?",
+    content: "회사 야외 주차장 구석에 있는 충전기 케이블 선이 보도블럭에 여러 번 쓸려서 그런지 내부 주황색 피복에 상처나서 구리선 같은 금속선이 좀 보이네요. 오늘 비가 부슬부슬 내리는데 충전 켜도 안전사고 문제없을까요?",
+    author: "게임하다왔음",
+    url: "https://www.inven.co.kr/board/ev/5391/1042",
+    scrapedAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+    category: "안전/사고",
+    keywords: ["피복 상처", "감전 위험", "누전 사고", "케이블 훼손"],
+    anomalyScore: 95,
+    anomalyReason: "비오는 날 노출된 구리 케이블 감전 및 누전 화재 극정 경보 이상 징후 감지. 하단 현장 즉시 조치 필요.",
+    isAnomaly: true,
+    promoStatus: "none",
+    views: 890
+  },
+  {
+    id: "q-8",
+    portal: "daum_cafe",
+    title: "전기 트럭 탑차 산 다음에 완속 충전기 전용 단독주택 설치 견적 조언",
+    content: "시골 주택 마당 구석에 개인용 홈패드 7kW 충전기 설치하려면 한전에 내야 하는 불입금이랑 계량기 별도로 파는 견적 비용이 대략 얼마 정도 드는지 선배님들의 자택 설치 경험담 좀 부탁드립니다.",
+    author: "익명트럭맨",
+    url: "https://cafe.daum.net/ev-truck/3982",
+    scrapedAt: new Date(Date.now() - 3600000 * 30.1).toISOString(),
+    category: "설치 문의",
+    keywords: ["단독주택 충전기", "한전 불입금", "7kW 완속", "개인용 홈패드"],
+    anomalyScore: 12,
+    isAnomaly: false,
+    promoStatus: "none",
+    views: 145
   }
 ];
 
