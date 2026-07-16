@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ScrapedQuestion, PortalItem } from '../types';
 import { PORTAL_MAP } from '../lib/constants';
-import { Sparkles, MessageSquare, Tag, Copy, Upload, ArrowRight, CornerDownRight, CheckCircle } from 'lucide-react';
+import { Sparkles, MessageSquare, Tag, Copy, Upload, ArrowRight, CornerDownRight, CheckCircle, ExternalLink } from 'lucide-react';
 
 interface AiResponseTabProps {
   questions: ScrapedQuestion[];
@@ -132,7 +132,19 @@ export const AiResponseTab: React.FC<AiResponseTabProps> = ({
             
             {/* Top: selected Question overview */}
             <div className="p-4 bg-slate-50 rounded-2xl relative border border-slate-100">
-              <span className="absolute top-3 right-3 text-[10px] text-gray-400 font-mono">작성자: {selectedQuestion.author}</span>
+              <div className="absolute top-3 right-3 flex items-center gap-2">
+                <span className="text-[10px] text-gray-400 font-mono">작성자: {selectedQuestion.author}</span>
+                <a
+                  href={selectedQuestion.url || 'https://kin.naver.com'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded transition-colors"
+                  title="포털 질문 원문 링크 열기"
+                >
+                  <ExternalLink className="h-2.5 w-2.5" />
+                  원문 링크
+                </a>
+              </div>
               <div className="flex items-center gap-2 mb-2">
                 {(() => {
                   const pSelInfo = portals?.find(p => p.id === selectedQuestion.portal) || PORTAL_MAP[selectedQuestion.portal];

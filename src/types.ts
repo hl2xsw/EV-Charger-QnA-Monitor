@@ -42,6 +42,8 @@ export interface SecurityLog {
   action: string;
   details: string;
   ip: string;
+  portal?: string;
+  url?: string;
 }
 
 export interface AnomalyRule {

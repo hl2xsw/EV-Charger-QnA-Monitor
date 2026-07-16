@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ScrapedQuestion, SchedulerConfig, PortalType, PortalItem } from '../types';
 import { PORTAL_MAP, CATEGORY_COLORS } from '../lib/constants';
-import { Search, SlidersHorizontal, Calendar, Plus, Play, Pause, Save, Trash2, ShieldAlert, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
+import { Search, SlidersHorizontal, Calendar, Plus, Play, Pause, Save, Trash2, ShieldAlert, Sparkles, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react';
 
 interface ScraperTabProps {
   questions: ScrapedQuestion[];
@@ -570,6 +570,17 @@ export const ScraperTab: React.FC<ScraperTabProps> = ({
 
                         {/* Operational elements */}
                         <td className="px-4 py-3.5 text-right space-y-1">
+                          <a
+                            href={q.url || 'https://kin.naver.com'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded transition-colors mr-1"
+                            title="질문 포털 원문 이동"
+                          >
+                            <ExternalLink className="h-2.5 w-2.5" />
+                            원문 이동
+                          </a>
+
                           <button
                             onClick={() => onSelectQuestion(q.id)}
                             className="inline-block px-2.5 py-1 text-[10px] font-bold bg-slate-800 text-white rounded hover:bg-slate-900 mr-1"

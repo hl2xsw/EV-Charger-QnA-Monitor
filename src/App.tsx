@@ -609,36 +609,8 @@ export default function App() {
       }
       throw new Error('API failed');
     } catch (e) {
-      console.warn('API connection error, using local crawler simulation:', e);
-      setScheduler(prev => ({ ...prev, isRunning: true }));
-      
-      // Simulate real-time scraping
-      setTimeout(() => {
-        const mockQuestions: Partial<ScrapedQuestion>[] = [
-          {
-            title: "지하 주차장 완속 충전기 주변 스프링클러 규정이 어떻게 되나요?",
-            content: "요즘 아파트 소방안전 특별조사 나온다고 해서 지하주차장 충전구역 안전시설물 점검하고 있는데, 살수설비나 방화벽 기준을 찾고 있습니다.",
-            category: "안전/사고" as const,
-            portal: portals[0]?.id || "bobae_dream",
-            isAnomaly: true,
-            anomalyScore: 92,
-            anomalyReason: "공동주택 지하 시설 화재 소방 법령 관련 문의"
-          },
-          {
-            title: "전기차 충전 요금 결제할 때 무조건 회원카드만 써야 할인되나요?",
-            content: "환경부 카드랑 한전 카드 신청하긴 했는데 충전소마다 요금 편차가 너무 심해서 제일 싸게 이용할 수 있는 실물 제휴카드가 뭔지 알고 싶습니다.",
-            category: "요금/효율" as const,
-            portal: portals[0]?.id || "naver_jisinin",
-            isAnomaly: false,
-            anomalyScore: 12,
-            anomalyReason: ""
-          }
-        ];
-        const randomMock = mockQuestions[Math.floor(Math.random() * mockQuestions.length)];
-        handleAddQuestion(randomMock);
-        setScheduler(prev => ({ ...prev, isRunning: false }));
-        alert('실시간 포털 수집 스케줄러 데몬 시뮬레이션이 활성화되었습니다! 새로운 질문 데이터 수집이 성공적으로 완료되었습니다.');
-      }, 1500);
+      console.error('실시간 크롤링 API 연동 에러:', e);
+      alert('서버 실시간 수집 연동 에러: 실제 포털 스크래퍼 호출 도중 문제가 발생했습니다.');
     }
   };
 

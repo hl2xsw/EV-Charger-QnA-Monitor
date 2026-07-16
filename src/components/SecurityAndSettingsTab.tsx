@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SecurityLog, AnomalyRule, ScrapedQuestion, PortalItem } from '../types';
-import { Shield, Lock, FileText, Download, ToggleLeft, ToggleRight, Plus, Eye, AlertOctagon, Printer, Activity, Trash2 } from 'lucide-react';
+import { Shield, Lock, FileText, Download, ToggleLeft, ToggleRight, Plus, Eye, AlertOctagon, Printer, Activity, Trash2, ExternalLink } from 'lucide-react';
 
 interface SecurityAndSettingsTabProps {
   logs: SecurityLog[];
@@ -29,6 +29,19 @@ export const SecurityAndSettingsTab: React.FC<SecurityAndSettingsTabProps> = ({
   onAddPortal,
   onDeletePortal
 }) => {
+  const getPortalHomeUrl = (portalId: string): string => {
+    switch (portalId) {
+      case 'naver_jisinin': return 'https://kin.naver.com';
+      case 'naver_cafe': return 'https://section.cafe.naver.com';
+      case 'daum_cafe': return 'https://top.cafe.daum.net';
+      case 'daum_tip': return 'https://tip.daum.net';
+      case 'dcinside': return 'https://gall.dcinside.com';
+      case 'fmkorea': return 'https://www.fmkorea.com';
+      case 'inven': return 'https://www.inven.co.kr';
+      case 'bobae_dream': return 'https://www.bobaedream.co.kr';
+      default: return 'https://www.naver.com';
+    }
+  };
   // New rule state
   const [newKeyword, setNewKeyword] = useState('');
   const [newLevel, setNewLevel] = useState<'critical' | 'warning'>('warning');
@@ -513,9 +526,11 @@ export const SecurityAndSettingsTab: React.FC<SecurityAndSettingsTabProps> = ({
                 log.role === 'admin' ? 'bg-indigo-100 text-indigo-800 border-indigo-200' :
                 log.role === 'manager' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-gray-100 text-gray-700';
 
+              const portalUrl = log.url || (log.portal ? getPortalHomeUrl(log.portal) : undefined);
+
               return (
                 <div key={log.id} className="p-2.5 rounded-lg border border-slate-50 hover:bg-slate-50 text-[11px] leading-snug flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                  <div className="space-y-1">
+                  <div className="space-y-1 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className={`px-1.5 py-0.2 rounded-md font-bold text-[9px] border ${roleBadgeColor}`}>
                         {log.role.toUpperCase()}
@@ -525,8 +540,22 @@ export const SecurityAndSettingsTab: React.FC<SecurityAndSettingsTabProps> = ({
                     </div>
                     <p className="text-gray-500 text-[10px]">{log.details}</p>
                   </div>
-                  <div className="text-[10px] font-mono text-gray-400 text-right whitespace-nowrap">
-                    {new Date(log.timestamp).toLocaleTimeString('ko-KR')}
+                  <div className="flex items-center gap-2 text-right">
+                    {portalUrl && (
+                      <a
+                        href={portalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-md text-[9px] font-bold transition-all whitespace-nowrap"
+                        title="질문 포털 원문 주소로 이동"
+                      >
+                        <ExternalLink className="h-2.5 w-2.5" />
+                        포털 이동
+                      </a>
+                    )}
+                    <div className="text-[10px] font-mono text-gray-400 whitespace-nowrap">
+                      {new Date(log.timestamp).toLocaleTimeString('ko-KR')}
+                    </div>
                   </div>
                 </div>
               );

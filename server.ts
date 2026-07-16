@@ -545,7 +545,9 @@ app.post("/api/questions", (req, res) => {
     role: "admin",
     action: "실시간 강제 크롤링 트리거 Q&A 누적",
     details: `신규 Q&A 수동 수집: [${portal}] ${title}`,
-    ip: "127.0.0.1"
+    ip: "127.0.0.1",
+    portal: portal as string,
+    url: url || "https://example.com/mock-portal-question"
   };
   securityLogs.unshift(log);
 
@@ -606,7 +608,9 @@ app.post("/api/questions/:id/generate-ai-reply", async (req, res) => {
         role: "admin",
         action: "AI 응대 자동화 답변 초안 생산",
         details: `Gemini API 호출 성공: [${brandName}] 기반 Q&A 응대 초안 마련`,
-        ip: "127.0.0.1"
+        ip: "127.0.0.1",
+        portal: question.portal,
+        url: question.url
       };
       securityLogs.unshift(aclLog);
 
@@ -715,7 +719,9 @@ app.post("/api/questions/:id/classify", async (req, res) => {
         role: "admin",
         action: "AI 원천 질문 분석&자동 분류 실행",
         details: `Gemini API를 통한 분류 분석 완료. 위험 스코어: ${question.anomalyScore}%`,
-        ip: "127.0.0.1"
+        ip: "127.0.0.1",
+        portal: question.portal,
+        url: question.url
       };
       securityLogs.unshift(clLog);
 
@@ -755,7 +761,9 @@ app.post("/api/questions/:id/post", (req, res) => {
     role: "admin",
     action: "질문 답변 포털 포스팅 업로드 상태 기록",
     details: `실제 포털(${question.portal}) 대응 포스팅을 완료로 변경 처리 마킹`,
-    ip: "127.0.0.1"
+    ip: "127.0.0.1",
+    portal: question.portal,
+    url: question.url
   };
   securityLogs.unshift(log);
 
@@ -777,12 +785,46 @@ app.delete("/api/questions/:id", (req, res) => {
       role: "admin",
       action: "Q&A 수집 기록 격리/삭제",
       details: `데이터 백오프 정리 작업: [${deleted.portal}] ${deleted.title}`,
-      ip: "127.0.0.1"
+      ip: "127.0.0.1",
+      portal: deleted.portal,
+      url: deleted.url
     };
     securityLogs.unshift(log);
     return res.json({ success: true });
   }
   res.status(404).json({ error: "Not found" });
+});
+
+// 4.5 Scheduler Configuration & Action Trigger endpoints
+app.get("/api/scheduler", (req, res) => {
+  res.json(schedulerConfig);
+});
+
+app.post("/api/scheduler", async (req, res) => {
+  const { isRunning, intervalMinutes, targetKws } = req.body;
+  if (isRunning !== undefined) {
+    schedulerConfig.isRunning = isRunning;
+  }
+  if (intervalMinutes !== undefined) {
+    schedulerConfig.intervalMinutes = intervalMinutes;
+  }
+  if (targetKws !== undefined) {
+    schedulerConfig.targetKws = targetKws;
+  }
+
+  schedulerConfig.lastRun = new Date().toISOString();
+  schedulerConfig.nextRun = new Date(Date.now() + schedulerConfig.intervalMinutes * 60000).toISOString();
+
+  if (isRunning) {
+    try {
+      console.log("[Scheduler Endpoint] Force-triggering a real live crawl via scheduler trigger.");
+      await executeRealtimePortalScraping();
+    } catch (e) {
+      console.error("[Scheduler Endpoint] Scrape failed:", e);
+    }
+  }
+
+  res.json(schedulerConfig);
 });
 
 // 5. Keyword analytic endpoints
@@ -964,102 +1006,7 @@ async function executeRealtimePortalScraping(): Promise<ScrapedQuestion[]> {
       console.log(`[Realtime Scraper] [LAYER 1] Successfully scraped ${newlyScraped.length} REAL portal queries from Naver Search!`);
     }
   } catch (error) {
-    console.error("[Realtime Scraper] [LAYER 1] Naver Live Scraping failed, shifting to LAYER 2 (Gemini + Search Grounding):", error);
-  }
-
-  // LAYER 2: Gemini Google Search Grounding (Highly realistic dynamic search matching)
-  if (newlyScraped.length === 0) {
-    const ai = getAiClient();
-    if (ai) {
-      try {
-        console.log(`[Realtime Scraper] [LAYER 2] Executing Live Portal Crawling using Google Search Grounding for keyword: "${randomKeyword}"`);
-        const targetPortals = activePortals.map(p => p.id);
-        const portalKeysText = targetPortals.join(", ");
-
-        const promptText = `
-        한국 커뮤니티(인터넷 포털 지식인, 카페, 디시인사이드 전기차 갤러리, 보배드림, 에펨코리아, 인벤, 다음 카페/팁 등)에서 전기차 충전 또는 충전기 관련 검색어인 "${randomKeyword}"에 관련된 실제 사용자가 유발한 생생한 질문, 불만, 사고사례, 이슈, 요금이나 설치 문의 데이터를 실시간 구글 검색(Google Search)을 기반으로 정밀 추적하고 분석하여 제공해 주십시오.
-
-        가상 홍보 브랜드인 "VoltCharge" 같은 단어를 활용한 AI의 임의 광고 창작성 글은 100% 배제하고, 반드시 이전에 한국인 전기차 실사용자들이 커뮤니티에 올렸던 날것 그대로의 실제 사실, 리얼 이슈, 고장, 빗물 감전 걱정, 주차 시비, 충전 속도 등의 내용들을 검색해 내서 규격화하십시오.
-        
-        반드시 다음 Schema를 만족하는 3개에서 5개 사이의 JSON 데이터 배열 형태로만 응답하십시오. 다른 마크다운 인트로나 부가 텍스트 없이 유효한 JSON 배열 텍스트 본문만 직접 돌려주어야 합니다:
-        
-        [수집 대상 포털 키워드 가이드]:
-        ${activePortals.map(p => `- "${p.id}" (${p.name})`).join("\n")}
-
-        [Schema 가이드]:
-        배열 내 아이템 구조:
-        {
-          "portal": "${portalKeysText} 중 적합한 하나",
-          "title": "실제 검색된 질문/게시글 제목과 흡사하게 한국어로 구성된 제목",
-          "content": "실제 상세 내용과 완벽히 부사한 2~3문장 이상의 현실적인 한국어 게시글 본문",
-          "author": "실제 작성된 느낌의 시민 ID 또는 별명",
-          "url": "실제 포털 규격에 일치하는 유사 원글 링크 주소 URL",
-          "category": "설치 문의" | "고장/불만" | "요금/효율" | "이용 방법" | "안전/사고" | "기타" 중 하나,
-          "keywords": ["적합태그1", "적합태그2", "적합태그3"],
-          "anomalyScore": 0에서 100 사이의 숫자 (화재나 케이블 단선, 피복 가랑 등 위험 위기 글 시 70 이상 책정),
-          "isAnomaly": 위기 이상 징후 글인지의 boolean 여부,
-          "anomalyReason": "위기 징후 감지 시 구체적인 사유 요약 (Anomaly 아닌 경우 생략)"
-        }
-        `;
-
-        const response = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
-          contents: promptText,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  portal: { type: Type.STRING },
-                  title: { type: Type.STRING },
-                  content: { type: Type.STRING },
-                  author: { type: Type.STRING },
-                  url: { type: Type.STRING },
-                  category: { type: Type.STRING },
-                  keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  anomalyScore: { type: Type.INTEGER },
-                  isAnomaly: { type: Type.BOOLEAN },
-                  anomalyReason: { type: Type.STRING }
-                },
-                required: ["portal", "title", "content", "author", "url", "category", "keywords", "anomalyScore", "isAnomaly"]
-              }
-            },
-            tools: [{ googleSearch: {} }] // Activate Search Grounding!
-          }
-        });
-
-        const responseText = response.text || "[]";
-        const cleanJson = JSON.parse(responseText.trim());
-        if (Array.isArray(cleanJson)) {
-          for (const item of cleanJson) {
-            const matchedPortal = targetPortals.includes(item.portal) ? item.portal : (targetPortals[0] || "naver_jisinin");
-            const newQ: ScrapedQuestion = {
-              id: "q-live-" + Date.now() + "_" + Math.floor(Math.random() * 10000),
-              portal: matchedPortal as PortalType,
-              title: item.title,
-              content: item.content,
-              author: item.author || "실시간수집봇",
-              url: item.url || "https://example.com/crawler-scraped",
-              scrapedAt: new Date().toISOString(),
-              category: (item.category || "기타") as any,
-              keywords: Array.isArray(item.keywords) ? item.keywords : ["실시간포털"],
-              anomalyScore: Number(item.anomalyScore) || 5,
-              isAnomaly: !!item.isAnomaly,
-              anomalyReason: item.anomalyReason,
-              promoStatus: "none",
-              views: Math.floor(Math.random() * 40) + 2
-            };
-            
-            newlyScraped.push(newQ);
-          }
-          console.log(`[Realtime Scraper] [LAYER 2] Google Search Grounding succeeded. Retrieved ${newlyScraped.length} real portal questions.`);
-        }
-      } catch (e) {
-        console.error("[Realtime Scraper] [LAYER 2] Google Search Grounding query failed, applying LAYER 3 fallback:", e);
-      }
-    }
+    console.error("[Realtime Scraper] [LAYER 1] Naver Live Scraping failed, shifting directly to offline real pool fallback:", error);
   }
 
   // LAYER 3: Offline Seed Pool (100% Genuine raw Korean portal logs collected from real forums)
