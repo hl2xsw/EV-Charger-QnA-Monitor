@@ -1296,14 +1296,14 @@ async function startServer() {
     } catch (e) {
       console.error("Failed to load Vite dev server middleware, falling back to static serving:", e);
       // Fallback
-      const distPath = path.join(process.cwd(), "docs");
+      const distPath = path.join(process.cwd(), "dist");
       app.use(express.static(distPath));
       app.get("*", (req, res) => {
         res.sendFile(path.join(distPath, "index.html"));
       });
     }
   } else {
-    const distPath = path.join(process.cwd(), "docs");
+    const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
