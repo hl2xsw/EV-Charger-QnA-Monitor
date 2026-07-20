@@ -32,6 +32,7 @@ export interface SchedulerConfig {
   lastRun: string | null;
   nextRun: string | null;
   targetKws: string[];
+  period?: '1w' | '1m' | '3m' | 'all';
 }
 
 export interface SecurityLog {

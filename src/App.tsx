@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ScrapedQuestion, KeywordTrend, SchedulerConfig, SecurityLog, AnomalyRule, SystemAlert, PortalItem } from './types';
 import { DashboardTab } from './components/DashboardTab';
 import { ScraperTab } from './components/ScraperTab';
@@ -217,22 +217,22 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'scraper' | 'ai-response' | 'security'>('dashboard');
   const [userRole, setUserRole] = useState<'admin' | 'manager' | 'viewer'>('admin');
 
-  // Backend state payloads (pre-filled with clean fallbacks, synced with localStorage for static hostings)
+  // Backend state payloads (starts empty as requested to perform instant live scraping on load, synced with localStorage)
   const [questions, setQuestions] = useState<ScrapedQuestion[]>(() => {
     try {
       const saved = localStorage.getItem('vp_questions');
       if (saved) {
         const parsed = JSON.parse(saved);
-        const hasMock = parsed.some((q: any) => q.portal === 'bobae_dream' || q.portal === 'dcinside' || q.url?.includes('bobaedream') || q.portal === 'fmkorea' || q.portal === 'inven' || q.portal === 'daum_cafe');
+        const hasMock = parsed.some((q: any) => q.portal === 'bobae_dream' || q.portal === 'dcinside' || q.url?.includes('bobaedream') || q.portal === 'fmkorea' || q.portal === 'inven' || q.portal === 'daum_cafe' || q.id === 'q-1');
         if (hasMock) {
-          localStorage.setItem('vp_questions', JSON.stringify(FALLBACK_QUESTIONS));
-          return FALLBACK_QUESTIONS;
+          localStorage.setItem('vp_questions', JSON.stringify([]));
+          return [];
         }
         return parsed;
       }
-      return FALLBACK_QUESTIONS;
+      return [];
     } catch {
-      return FALLBACK_QUESTIONS;
+      return [];
     }
   });
   const [keywords, setKeywords] = useState<KeywordTrend[]>(() => {
@@ -339,24 +339,26 @@ export default function App() {
         fetch('/api/portals').catch(() => null)
       ]);
 
+      const isJson = (res: Response | null) => res && res.ok && res.headers.get('content-type')?.includes('application/json');
+
       if (
-        !questionsRes || !questionsRes.ok ||
-        !keywordsRes || !keywordsRes.ok ||
-        !schedulerRes || !schedulerRes.ok ||
-        !logsRes || !logsRes.ok ||
-        !rulesRes || !rulesRes.ok ||
-        !alertsRes || !alertsRes.ok
+        !isJson(questionsRes) ||
+        !isJson(keywordsRes) ||
+        !isJson(schedulerRes) ||
+        !isJson(logsRes) ||
+        !isJson(rulesRes) ||
+        !isJson(alertsRes)
       ) {
-        throw new Error('API server has a transient connection delay. Yielding fallback simulation datasets.');
+        throw new Error('API server has a transient connection delay or non-JSON fallback. Yielding fallback simulation datasets.');
       }
 
       const [questionsData, keywordsData, schedulerData, logsData, rulesData, alertsData] = await Promise.all([
-        questionsRes.json(),
-        keywordsRes.json(),
-        schedulerRes.json(),
-        logsRes.json(),
-        rulesRes.json(),
-        alertsRes.json()
+        questionsRes!.json(),
+        keywordsRes!.json(),
+        schedulerRes!.json(),
+        logsRes!.json(),
+        rulesRes!.json(),
+        alertsRes!.json()
       ]);
 
       // If we received valid array states, populate them
@@ -392,19 +394,33 @@ export default function App() {
     }
   }, []);
 
+  const hasTriggeredInit = useRef(false);
+
   useEffect(() => {
-    fetchAllStates();
-    // Refresh alerts & questions every 12 seconds with error shielding to prevent uncaught "Failed to fetch" rejections
+    // 1.5 Initial load: Clear to 0 items immediately, load other states, and trigger instant real-time live scrape
+    const initAndScrape = async () => {
+      setQuestions([]);
+      localStorage.setItem('vp_questions', JSON.stringify([]));
+      await fetchAllStates();
+      if (!hasTriggeredInit.current) {
+        hasTriggeredInit.current = true;
+        console.log('[Init Mount] Automatically triggering real-time scraper on initial mount...');
+        await handleTriggerScrapeNow();
+      }
+    };
+    initAndScrape();
+
+    // Refresh alerts & questions periodically with error shielding
     const timer = setInterval(() => {
       const safeBackgroundFetch = async (url: string, updater: (data: any) => void) => {
         try {
           const res = await fetch(url);
-          if (res && res.ok) {
+          const isJson = res && res.ok && res.headers.get('content-type')?.includes('application/json');
+          if (isJson) {
             const data = await res.json();
             if (data) updater(data);
           }
         } catch (e) {
-          // Gracefully swallow network interruptions during builds/restarts
           console.debug(`[Background Polling Suppressed exception for ${url}]:`, e);
         }
       };
@@ -412,7 +428,7 @@ export default function App() {
       safeBackgroundFetch('/api/questions', setQuestions);
       safeBackgroundFetch('/api/alerts', setAlerts);
       safeBackgroundFetch('/api/keywords', setKeywords);
-    }, 12000);
+    }, 15000);
     return () => clearInterval(timer);
   }, [fetchAllStates]);
 
@@ -631,7 +647,8 @@ export default function App() {
       console.log('[Realtime Scraper] Client requested manual real-time crawl trigger.');
       // Direct post to real-time scraper trigger
       const response = await fetch('/api/scraper/trigger', { method: 'POST' });
-      if (response && response.ok) {
+      const isJson = response && response.ok && response.headers.get('content-type')?.includes('application/json');
+      if (isJson) {
         const result = await response.json();
         console.log('[Realtime Scraper] Scrape result:', result);
         // Refresh all states immediately to show the new questions
@@ -640,10 +657,10 @@ export default function App() {
         if (result.count > 0) {
           alert(`실시간 Naver 지식iN 질문 ${result.count}건을 성공적으로 수집 및 여과하여 업데이트했습니다.`);
         } else {
-          alert('1주일 이내 작성된 새로운 실시간 Naver 지식iN 질문이 현재 발견되지 않았습니다. (0건 수집)');
+          alert('설정된 기간 이내 작성된 새로운 실시간 Naver 지식iN 질문이 현재 발견되지 않았습니다. (0건 수집)');
         }
       } else {
-        throw new Error('Crawl trigger failed');
+        throw new Error('Crawl trigger failed or returned non-JSON fallback');
       }
     } catch (e) {
       console.warn('[Realtime Scraper] Server API is not reachable (possibly running on a static host like GitHub Pages). Utilizing offline scraper engine.', e);

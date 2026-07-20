@@ -53,8 +53,14 @@ export const ScraperTab: React.FC<ScraperTabProps> = ({
 
   // Local states for Scheduler adjustments
   const [intervalMin, setIntervalMin] = useState(scheduler.intervalMinutes);
+  const [period, setPeriod] = useState<'1w' | '1m' | '3m' | 'all'>(scheduler.period || '1w');
   const [newKeyword, setNewKeyword] = useState('');
   const [isSavingSched, setIsSavingSched] = useState(false);
+
+  useEffect(() => {
+    setIntervalMin(scheduler.intervalMinutes);
+    setPeriod(scheduler.period || '1w');
+  }, [scheduler]);
 
   // Filter logic
   const filteredQuestions = questions.filter(q => {
@@ -113,8 +119,11 @@ export const ScraperTab: React.FC<ScraperTabProps> = ({
     if (userRole === 'viewer') return;
     setIsSavingSched(true);
     try {
-      await onUpdateScheduler({ intervalMinutes: Number(intervalMin) });
-      alert('스케줄러 수집 주기가 저장되었습니다.');
+      await onUpdateScheduler({ 
+        intervalMinutes: Number(intervalMin),
+        period: period
+      });
+      alert('스케줄러 설정(주기 및 검색 기간)이 저장되었습니다.');
     } catch (e) {
       console.error(e);
     } finally {
@@ -205,11 +214,41 @@ export const ScraperTab: React.FC<ScraperTabProps> = ({
               />
               <button
                 onClick={handleSaveSchedulerRange}
-                disabled={userRole === 'viewer' || intervalMin === scheduler.intervalMinutes}
+                disabled={userRole === 'viewer' || (intervalMin === scheduler.intervalMinutes && period === scheduler.period)}
                 className="p-2 border border-gray-200 bg-gray-50 hover:bg-slate-100 rounded-lg transition-colors text-xs text-gray-700 font-medium"
               >
                 <Save className="h-4 w-4" />
               </button>
+            </div>
+          </div>
+
+          {/* Period setting */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold text-gray-400 uppercase">매체 검색 기간 설정</label>
+            <div className="grid grid-cols-4 gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
+              {(['1w', '1m', '3m', 'all'] as const).map((p) => {
+                const labels: Record<string, string> = {
+                  '1w': '1주일',
+                  '1m': '1개월',
+                  '3m': '3개월',
+                  'all': '전체'
+                };
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPeriod(p)}
+                    disabled={userRole === 'viewer'}
+                    className={`py-1 text-[10px] font-medium rounded-md transition-all ${
+                      period === p
+                        ? 'bg-white text-indigo-600 shadow-xs border border-slate-200/50'
+                        : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'
+                    } disabled:opacity-50`}
+                  >
+                    {labels[p]}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
