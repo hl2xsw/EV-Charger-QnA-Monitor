@@ -894,48 +894,49 @@ async function executeRealtimePortalScraping(): Promise<ScrapedQuestion[]> {
     ? schedulerConfig.targetKws 
     : ["전기차 충전", "충전기 고장", "전기차 화재", "아파트 충전기"];
   
-  const randomKeyword = searchKws[Math.floor(Math.random() * searchKws.length)];
   const newlyScraped: ScrapedQuestion[] = [];
 
-  // LAYER 1: Naver Live HTML Scraping via Cheerio (100% REAL Portal Inquiries sorted by date, limited to 1 week period with fallback to general latest if 0 results)
-  try {
-    console.log(`[Realtime Scraper] Scraping real Naver KIN Search Q&A for keyword: "${randomKeyword}"`);
-    let searchUrl = `https://kin.naver.com/search/list.naver?query=${encodeURIComponent(randomKeyword)}&period=1w&sort=date`;
-    
-    let response = await fetch(searchUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-        "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"
-      }
-    });
-    
-    let html = "";
-    if (response.ok) {
-      html = await response.text();
-    }
-    
-    let $ = cheerio.load(html || "");
-    let bxItems = $("ul.basic1 > li");
-    
-    // Fallback: If 1-week constraint is too restrictive and returns 0 items, search unrestricted to get latest authentic posts
-    if (bxItems.length === 0) {
-      console.log(`[Realtime Scraper] 0 results found with 1-week constraint. Retrying search with unrestricted period...`);
-      searchUrl = `https://kin.naver.com/search/list.naver?query=${encodeURIComponent(randomKeyword)}&sort=date`;
-      response = await fetch(searchUrl, {
+  // Scrape each target keyword sequentially to gather comprehensive real-time insights
+  for (const keyword of searchKws) {
+    try {
+      console.log(`[Realtime Scraper] Scraping real Naver KIN Search Q&A for target keyword: "${keyword}"`);
+      let searchUrl = `https://kin.naver.com/search/list.naver?query=${encodeURIComponent(keyword)}&period=1w&sort=date`;
+      
+      let response = await fetch(searchUrl, {
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
           "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"
         }
       });
+      
+      let html = "";
       if (response.ok) {
         html = await response.text();
-        $ = cheerio.load(html);
-        bxItems = $("ul.basic1 > li");
       }
-    }
-    
-    bxItems.each((i, el) => {
-        if (newlyScraped.length >= 4) return; // Keep batch balanced
+      
+      let $ = cheerio.load(html || "");
+      let bxItems = $("ul.basic1 > li");
+      
+      // Fallback: If 1-week constraint is too restrictive and returns 0 items, search unrestricted to get latest authentic posts
+      if (bxItems.length === 0) {
+        console.log(`[Realtime Scraper] 0 results found for "${keyword}" with 1-week constraint. Retrying search with unrestricted period...`);
+        searchUrl = `https://kin.naver.com/search/list.naver?query=${encodeURIComponent(keyword)}&sort=date`;
+        response = await fetch(searchUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+            "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"
+          }
+        });
+        if (response.ok) {
+          html = await response.text();
+          $ = cheerio.load(html);
+          bxItems = $("ul.basic1 > li");
+        }
+      }
+      
+      let countForKeyword = 0;
+      bxItems.each((i, el) => {
+        if (countForKeyword >= 3) return; // Limit to 3 items per keyword to ensure a balanced, non-spammy real-time set
 
         // Find title anchor
         const aTag = $(el).find("dt > a, dt.title > a").first();
@@ -968,7 +969,7 @@ async function executeRealtimePortalScraping(): Promise<ScrapedQuestion[]> {
         }
         content = content.replace(/\s+/g, " ").slice(0, 250);
 
-        if (title.length < 5 || newlyScraped.some(q => q.title === title)) return;
+        if (title.length < 5 || newlyScraped.some(q => q.title === title) || scrapedQuestions.some(q => q.title === title)) return;
 
         // Auto categorizer
         let category: any = "기타";
@@ -1012,22 +1013,25 @@ async function executeRealtimePortalScraping(): Promise<ScrapedQuestion[]> {
           url: linkUrl,
           scrapedAt: new Date().toISOString(),
           category,
-          keywords: [randomKeyword, "네이버실시간", "리얼로그"],
+          keywords: [keyword, "네이버실시간", "리얼로그"],
           anomalyScore,
           isAnomaly,
           anomalyReason: isAnomaly ? anomalyReason : undefined,
           promoStatus: "none",
           views: Math.floor(Math.random() * 45) + 3
         });
+
+        countForKeyword++;
       });
-    
-    if (newlyScraped.length > 0) {
-      console.log(`[Realtime Scraper] Successfully scraped ${newlyScraped.length} REAL portal queries from Naver Search!`);
-    } else {
-      console.log(`[Realtime Scraper] No new posts found for keyword "${randomKeyword}" in the last 1 week.`);
+    } catch (keywordError) {
+      console.error(`[Realtime Scraper] Failed to scrape Naver KIN for keyword "${keyword}":`, keywordError);
     }
-  } catch (error) {
-    console.error("[Realtime Scraper] Naver Live Scraping failed:", error);
+  }
+
+  if (newlyScraped.length > 0) {
+    console.log(`[Realtime Scraper] Successfully scraped ${newlyScraped.length} REAL portal queries in total!`);
+  } else {
+    console.log(`[Realtime Scraper] No new posts found for any of the target keywords in the last week.`);
   }
 
   // LAYER 3: Removed completely to prevent any mock, simulated, or fallback question generation.
