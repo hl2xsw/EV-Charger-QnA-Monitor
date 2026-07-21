@@ -14,7 +14,7 @@ const FALLBACK_QUESTIONS: ScrapedQuestion[] = [
     title: "아파트 500세대 충전기 신규 설치 규정 질문입니다",
     content: "아파트 입주자대표회의에서 친환경자동차법 규정 때문에 전기차 충전기 설치 의무 비율을 충족해야 한다는데, 완속충전기랑 급속충전기 비율을 어떻게 맞추는 게 입주민들에게 유리할까요? 그리고 정부보조금 받을 파트너 업체 추천 바랍니다.",
     author: "지식인초보",
-    url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent("아파트 500세대 충전기 신규 설치 규정")}&sort=date`,
+    url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent("아파트 전기차 충전기 설치")}&sort=date`,
     scrapedAt: new Date(Date.now() - 3600000 * 2.5).toISOString(),
     category: "설치 문의",
     keywords: ["설치 의무", "아파트 충전기", "친환경자동차법", "정부 보조금"],
@@ -31,7 +31,7 @@ const FALLBACK_QUESTIONS: ScrapedQuestion[] = [
     title: "아파트 전기차 충전기 완속 충전기 고장 및 충전 안될 때 대처법",
     content: "아파트 주차장 완속 충전기 액정이 꺼져 있고 카드를 태그해도 인식이 전혀 안 되는데, 이거 관리실에 말해야 하나요 아니면 충전기 업체에 직접 전화해서 신고해야 하나요? 입주민용 충전 에러 신속하게 해결하는 방법 알려주세요.",
     author: "오너992",
-    url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent("아파트 전기차 완속 충전기 고장 대처법")}&sort=date`,
+    url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent("전기차 완속충전기 고장")}&sort=date`,
     scrapedAt: new Date(Date.now() - 3600000 * 4.2).toISOString(),
     category: "고장/불만",
     keywords: ["충전기 고장", "고장 신고", "완속 충전기", "작동 에러"],
@@ -46,7 +46,7 @@ const FALLBACK_QUESTIONS: ScrapedQuestion[] = [
     title: "전기차 급속 충전하는데 80% 부근에서 속도가 왜 이렇게 느려지나요?",
     content: "전기차 급속 충전소에서 충전 중인데 80% 근처가 되니까 충전 속도가 20kW 이하로 갑자기 뚝 떨어지네요. 원래 초반에는 100kW 넘게 찍혔는데 이거 충전 기계 에러인가요 아니면 배터리 보호 장치인가요?",
     author: "배터리궁금",
-    url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent("전기차 급속 충전 80% 속도")}&sort=date`,
+    url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent("전기차 급속 충전")}&sort=date`,
     scrapedAt: new Date(Date.now() - 3600000 * 5.8).toISOString(),
     category: "이용 방법",
     keywords: ["급속 충전", "충전 속도 저하", "배터리 보호", "고장 의심"],
@@ -63,7 +63,7 @@ const FALLBACK_QUESTIONS: ScrapedQuestion[] = [
     title: "지하 주차장 전기차 충전기 화재 예방 패드나 질식소화포 설치 규정",
     content: "전기차 지하주차장 충전 화재 예방을 위해 질식소화포나 소방 전용 안전 설비를 필수로 아파트에 설치해야 하는 규정이 신설되었는지 궁금합니다. 입주민들이 소방 안전 예방 특허가 탑재된 충전기 업체 제품으로 전면 교체를 원하고 있어요.",
     author: "소방안전관",
-    url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent("지하주차장 전기차 충전기 질식소화포 설치 규정")}&sort=date`,
+    url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent("전기차 충전기 화재")}&sort=date`,
     scrapedAt: new Date(Date.now() - 3600000 * 8.0).toISOString(),
     category: "안전/사고",
     keywords: ["화재 예방", "지하주차장", "화재 사고", "소화기 의무"],
@@ -79,7 +79,7 @@ const FALLBACK_QUESTIONS: ScrapedQuestion[] = [
     title: "공공기관 주차장 전기차 충전기 인식이 잘 안될 때 고장 신고 처리는?",
     content: "근처 주민센터 주차장에 설치된 공영 완속 충전기 터치 액정이 아예 안 켜져 있고 카드 인증도 오류가 뜨는데, 이럴 땐 어디에 민원을 넣고 신고를 접수해야 처리가 가장 빠른가요?",
     author: "주민대표",
-    url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent("공공기관 주차장 전기차 충전기 고장 신고")}&sort=date`,
+    url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent("전기차 충전기 고장 신고")}&sort=date`,
     scrapedAt: new Date(Date.now() - 3600000 * 12.3).toISOString(),
     category: "고장/불만",
     keywords: ["충전기 고장", "고장 신고", "공영주차장", "작동 에러"],
@@ -94,7 +94,7 @@ const FALLBACK_QUESTIONS: ScrapedQuestion[] = [
     title: "한전 전기차 충전 요금 계절별 경부하 시간대 단가 차이 질문",
     content: "전기차 충전 요금 고지서를 보니까 계절별로 단가가 다 다르고 경부하 시간대가 밤 11시부터 적용된다는데 확실히 야간 완속 충전이 누진세가 안 붙고 엄청 저렴한지 한전 요금표 구조 질문드립니다.",
     author: "요금절약러",
-    url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent("한전 전기차 충전 요금 계절별 경부하 시간대")}&sort=date`,
+    url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent("전기차 충전 요금")}&sort=date`,
     scrapedAt: new Date(Date.now() - 3600000 * 18.5).toISOString(),
     category: "요금/효율",
     keywords: ["경부하 요금", "전기료 절감", "야간 충전", "계절별 전기요금"],
@@ -109,7 +109,7 @@ const FALLBACK_QUESTIONS: ScrapedQuestion[] = [
     title: "비오는 날 전기차 야외 충전소 케이블 피복 벗겨짐 위험할까요?",
     content: "회사 실외 주차장에 있는 전기차 충전기 선이 까져서 내부 구리선이 보이는데, 오늘 비도 많이 오고 슬쩍 손대기 무서워서 충전 카드를 태그해도 안전에 지장이 없는지 심각한 감전 위험이나 누전 사고 우려가 되는지 급히 질문합니다.",
     author: "안전제일EV",
-    url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent("비오는 날 전기차 야외 충전소 케이블 피복")}&sort=date`,
+    url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent("전기차 야외 충전 안전")}&sort=date`,
     scrapedAt: new Date(Date.now() - 3600000 * 24).toISOString(),
     category: "안전/사고",
     keywords: ["피복 상처", "감전 위험", "누전 사고", "케이블 훼손"],
@@ -125,7 +125,7 @@ const FALLBACK_QUESTIONS: ScrapedQuestion[] = [
     title: "단독주택 개인용 7kW 완속 충전기 자택 설치 비용 문의",
     content: "단독주택 개인 차고에 완속 7kW 전용 홈패드 충전기를 자비로 설치하려고 하는데, 한전에 내야 하는 불입금이랑 선로 포설 공사비 등을 합친 대략적인 견적과 추천 업체를 알려주시면 감사하겠습니다.",
     author: "개인충전",
-    url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent("단독주택 개인용 7kW 완속 충전기 설치 비용")}&sort=date`,
+    url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent("개인용 전기차 충전기 설치")}&sort=date`,
     scrapedAt: new Date(Date.now() - 3600000 * 30.1).toISOString(),
     category: "설치 문의",
     keywords: ["단독주택 충전기", "한전 불입금", "7kW 완속", "개인용 홈패드"],
@@ -323,12 +323,12 @@ export default function App() {
   // Update cursor style on document body when loading state changes to show hourglass/wait cursor
   useEffect(() => {
     if (isLoading) {
-      document.body.style.cursor = 'wait';
+      document.body.classList.add('loading-state');
     } else {
-      document.body.style.cursor = 'default';
+      document.body.classList.remove('loading-state');
     }
     return () => {
-      document.body.style.cursor = 'default';
+      document.body.classList.remove('loading-state');
     };
   }, [isLoading]);
 
@@ -759,7 +759,14 @@ export default function App() {
           title,
           content,
           author: `EV오너_${Math.floor(Math.random() * 900 + 100)}`,
-          url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent(title)}&sort=date`,
+          url: (() => {
+            const periodParam = scheduler.period || '1w';
+            let searchUrl = `https://kin.naver.com/search/list.naver?query=${encodeURIComponent(title)}&sort=date`;
+            if (periodParam !== 'all') {
+              searchUrl += `&period=${periodParam}`;
+            }
+            return searchUrl;
+          })(),
           scrapedAt: new Date().toISOString(),
           category,
           keywords: [kw, "오프라인시뮬레이션", "실시간감지"],
@@ -795,7 +802,14 @@ export default function App() {
           title: candidate.title,
           content: candidate.content,
           author: `EV오너_777`,
-          url: `https://kin.naver.com/search/list.naver?query=${encodeURIComponent(candidate.title)}&sort=date`,
+          url: (() => {
+            const periodParam = scheduler.period || '1w';
+            let searchUrl = `https://kin.naver.com/search/list.naver?query=${encodeURIComponent(candidate.title)}&sort=date`;
+            if (periodParam !== 'all') {
+              searchUrl += `&period=${periodParam}`;
+            }
+            return searchUrl;
+          })(),
           scrapedAt: new Date().toISOString(),
           category: candidate.category,
           keywords: candidate.keywords,
@@ -1016,7 +1030,7 @@ export default function App() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-lg font-black tracking-tight font-sans text-white">VoltCharge Q&A</h1>
+                <h1 className="text-lg font-black tracking-tight font-sans text-white">Electric Vehicle Charge Q&A</h1>
                 <span className="px-2 py-0.5 text-[10px] font-bold text-indigo-300 bg-indigo-900 border border-indigo-700 rounded-full">포털 홍보용 모니터링 시스템</span>
               </div>
               <p className="text-[11px] text-slate-400 mt-0.5">8대 보배드림 · Naver 지식iN 실시간 수집 및 AI 침투식 홍보 자동화 통합 대시보드</p>

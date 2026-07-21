@@ -1,1 +1,6 @@
 @import "tailwindcss";
+
+body.loading-state,
+body.loading-state * {
+  cursor: wait !important;
+}
