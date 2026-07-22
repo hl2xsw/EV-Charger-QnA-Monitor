@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ScrapedQuestion, SchedulerConfig, PortalType, PortalItem } from '../types';
 import { PORTAL_MAP, CATEGORY_COLORS } from '../lib/constants';
 import { Search, SlidersHorizontal, Calendar, Plus, Play, Pause, Save, Trash2, ShieldAlert, Sparkles, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react';
+import { sanitizePortalUrl } from '../lib/urlUtils';
 
 interface ScraperTabProps {
   questions: ScrapedQuestion[];
@@ -92,7 +93,7 @@ export const ScraperTab: React.FC<ScraperTabProps> = ({
         title: manualTitle,
         content: manualContent,
         author: manualAuthor || '운영팀수동',
-        url: manualUrl || `https://kin.naver.com/search/list.naver?query=${encodeURIComponent(manualTitle)}&sort=date`,
+        url: sanitizePortalUrl(manualUrl, manualTitle, manualPortal, kws),
         category: manualCategory,
         keywords: kws
       });
@@ -623,7 +624,7 @@ export const ScraperTab: React.FC<ScraperTabProps> = ({
                         {/* Operational elements */}
                         <td className="px-4 py-3.5 text-right space-y-1">
                           <a
-                            href={q.url || 'https://kin.naver.com'}
+                            href={sanitizePortalUrl(q.url, q.title, q.portal, q.keywords)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded transition-colors mr-1"

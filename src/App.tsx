@@ -5,6 +5,7 @@ import { ScraperTab } from './components/ScraperTab';
 import { AiResponseTab } from './components/AiResponseTab';
 import { SecurityAndSettingsTab } from './components/SecurityAndSettingsTab';
 import { LayoutDashboard, Settings2, Sparkles, Shield, AlertTriangle, RefreshCw, Zap } from 'lucide-react';
+import { sanitizePortalUrl, cleanText } from './lib/urlUtils';
 
 // Pristine Korean Demo Constant Fallbacks to prevent 0 content displays during transient API delay
 const FALLBACK_QUESTIONS: ScrapedQuestion[] = [
@@ -228,7 +229,12 @@ export default function App() {
           localStorage.setItem('vp_questions', JSON.stringify([]));
           return [];
         }
-        return parsed;
+        return parsed.map((q: any) => ({
+          ...q,
+          title: cleanText(q.title),
+          content: cleanText(q.content),
+          url: sanitizePortalUrl(q.url, q.title, q.portal, q.keywords)
+        }));
       }
       return [];
     } catch {
@@ -736,23 +742,25 @@ export default function App() {
           anomalyScore = 10 + Math.floor(Math.random() * 10);
         } else if (safeKw.includes("방해") || safeKw.includes("주차") || safeKw.includes("과태료") || safeKw.includes("신고") || safeKw.includes("차단") || safeKw.includes("충전소")) {
           const rand = Math.random();
+          const kwTerm = (kw && kw !== 'undefined') ? kw : '충전';
           if (rand > 0.5) {
-            title = `아파트 전기차 주차구역에 일반 내연기관 차량이 상습 ${kw}하는데 바로 신고해도 되나요?`;
-            content = `저희 동 지하 1층 전기차 전용 구역에 하이브리드도 아닌 일반 가솔린 차량이 매일 밤 ${kw}되어 있습니다. 안전신문고 앱으로 주민 신고를 하면 바로 과태료 10만 원이 부과되는 구체적인 성립 요건과 증거 사진 찍는 노하우가 궁금합니다.`;
+            title = `아파트 전기차 주차구역에 일반 내연기관 차량이 상습 ${kwTerm}하는데 바로 신고해도 되나요?`;
+            content = `저희 동 지하 1층 전기차 전용 구역에 하이브리드도 아닌 일반 가솔린 차량이 매일 밤 ${kwTerm}되어 있습니다. 안전신문고 앱으로 주민 신고를 하면 바로 과태료 10만 원이 부과되는 구체적인 성립 요건과 증거 사진 찍는 노하우가 궁금합니다.`;
           } else {
-            title = `전기차 급속 충전소에서 충전 끝난 후 1시간 이상 이동 안 할 때 벌금 ${kw} 기준`;
-            content = `고속도로 휴게소 급속 충전기 앞에 충전이 끝난 채로 차주분이 밥 먹으러 갔는지 감감무소식입니다. 급속 충전 구역에서 충전 완료 후 장기 방치하는 것도 불법 충전 ${kw} 행위로 단속되어 벌금이나 과태료 처분을 받는지 정확한 기준이 어떻게 되나요?`;
+            title = `전기차 급속 충전소에서 충전 끝난 후 1시간 이상 이동 안 할 때 벌금 ${kwTerm} 기준`;
+            content = `고속도로 휴게소 급속 충전기 앞에 충전이 끝난 채로 차주분이 밥 먹으러 갔는지 감감무소식입니다. 급속 충전 구역에서 충전 완료 후 장기 방치하는 것도 불법 충전 ${kwTerm} 행위로 단속되어 벌금이나 과태료 처분을 받는지 정확한 기준이 어떻게 되나요?`;
           }
           category = "이용 방법";
           anomalyScore = 25 + Math.floor(Math.random() * 15);
         } else {
           const rand = Math.random();
+          const kwTerm = (kw && kw !== 'undefined') ? kw : '관리';
           if (rand > 0.5) {
-            title = `출퇴근용 전기차 신차 구입 예정인데 가정용 완속충전기 쓸만한 브랜드 ${kw} 추천해주세요.`;
-            content = `개인 단독주택 주차장에 설치할 7kW 완속충전기를 구매하려고 합니다. 잔고장이 없고 스마트폰 앱 연동이 잘 돼서 야간 충전 예약이나 사용 전력 모니터링이 편한 검증된 완속충전기 가성비 브랜드가 있다면 ${kw} 추천 부탁드려요.`;
+            title = `출퇴근용 전기차 신차 구입 예정인데 가정용 완속충전기 쓸만한 브랜드 ${kwTerm} 추천해주세요.`;
+            content = `개인 단독주택 주차장에 설치할 7kW 완속충전기를 구매하려고 합니다. 잔고장이 없고 스마트폰 앱 연동이 잘 돼서 야간 충전 예약이나 사용 전력 모니터링이 편한 검증된 완속충전기 가성비 브랜드가 있다면 ${kwTerm} 추천 부탁드려요.`;
           } else {
-            title = `전기차 타시는 선배님들, 초보가 알아야 할 겨울철 충전 배터리 효율 및 ${kw} 팁 부탁드립니다.`;
-            content = `처음으로 전기차를 계약하고 인도 대기 중인 초보 오너입니다. 겨울철에 기온이 낮아지면 배터리 방전 속도도 빨라지고 완속/급속 충전 속도 자체도 엄청 느려진다고 들어서 걱정 많습니다. 혹시 히터 사용 시 주행 거리 단축 줄이는 팁이나 배터리 ${kw} 노하우를 듣고 싶습니다.`;
+            title = `전기차 타시는 선배님들, 초보가 알아야 할 겨울철 충전 배터리 효율 및 ${kwTerm} 팁 부탁드립니다.`;
+            content = `처음으로 전기차를 계약하고 인도 대기 중인 초보 오너입니다. 겨울철에 기온이 낮아지면 배터리 방전 속도도 빨라지고 완속/급속 충전 속도 자체도 엄청 느려진다고 들어서 걱정 많습니다. 혹시 히터 사용 시 주행 거리 단축 줄이는 팁이나 배터리 ${kwTerm} 노하우를 듣고 싶습니다.`;
           }
           category = "기타";
         }
@@ -760,22 +768,15 @@ export default function App() {
         if (existingTitles.has(title)) continue;
 
         const simulatedQuestion: ScrapedQuestion = {
-          id: `q-scraped-offline-${Date.now()}-${encodeURIComponent(kw).slice(0, 5)}`,
+          id: `q-scraped-offline-${Date.now()}-${encodeURIComponent(kw || 'sim').slice(0, 5)}`,
           portal: "naver_jisinin",
           title,
           content,
           author: `EV오너_${Math.floor(Math.random() * 900 + 100)}`,
-          url: (() => {
-            const periodParam = scheduler.period || '1w';
-            let searchUrl = `https://kin.naver.com/search/list.naver?query=${encodeURIComponent(title)}&sort=date`;
-            if (periodParam !== 'all') {
-              searchUrl += `&period=${periodParam}`;
-            }
-            return searchUrl;
-          })(),
+          url: sanitizePortalUrl(undefined, title, "naver_jisinin", [kw, "겨울철", "충전"]),
           scrapedAt: new Date().toISOString(),
           category: category as any,
-          keywords: [kw, "오프라인시뮬레이션", "실시간감지"],
+          keywords: [kw || '충전', "오프라인시뮬레이션", "실시간감지"],
           anomalyScore,
           isAnomaly,
           anomalyReason: isAnomaly ? anomalyReason : undefined,
@@ -787,7 +788,7 @@ export default function App() {
 
         if (isAnomaly) {
           const newAlert: SystemAlert = {
-            id: `alert-offline-${Date.now()}-${encodeURIComponent(kw).slice(0, 5)}`,
+            id: `alert-offline-${Date.now()}-${encodeURIComponent(kw || 'sim').slice(0, 5)}`,
             timestamp: new Date().toISOString(),
             level: "critical",
             message: `🚨 긴급 경보 [실시간 위협 자동 탐지]: ${title}`,
@@ -807,14 +808,7 @@ export default function App() {
           title: candidate.title,
           content: candidate.content,
           author: `EV오너_777`,
-          url: (() => {
-            const periodParam = scheduler.period || '1w';
-            let searchUrl = `https://kin.naver.com/search/list.naver?query=${encodeURIComponent(candidate.title)}&sort=date`;
-            if (periodParam !== 'all') {
-              searchUrl += `&period=${periodParam}`;
-            }
-            return searchUrl;
-          })(),
+          url: sanitizePortalUrl(candidate.url, candidate.title, "naver_jisinin", candidate.keywords),
           scrapedAt: new Date().toISOString(),
           category: candidate.category,
           keywords: candidate.keywords,
