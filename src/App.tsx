@@ -685,7 +685,15 @@ export default function App() {
       const existingTitles = new Set(questions.map(q => q.title));
       const newlyScrapedList: ScrapedQuestion[] = [];
 
-      for (const kw of targetSample) {
+      const evModels = ['아이오닉6', 'EV6', '토레스 EVX', '레이 EV', '캐스퍼 EV', '테슬라 모델Y', '포터2 EV', '코나 EV'];
+      const locationList = ['지하 1층 주차장', '지하 2층 충전구역', '상가 지하주차장', '단독주택 차고', '회사 야외 충전소', '공영주차장 충전소'];
+
+      for (let i = 0; i < targetSample.length; i++) {
+        const kw = targetSample[i];
+        const safeKw = kw || '충전';
+        const model = evModels[Math.floor(Math.random() * evModels.length)];
+        const loc = locationList[Math.floor(Math.random() * locationList.length)];
+
         let title = "";
         let content = "";
         let category = "기타";
@@ -694,15 +702,14 @@ export default function App() {
         let anomalyReason = "";
         let views = 45 + Math.floor(Math.random() * 210);
 
-        const safeKw = kw || '';
         if (safeKw.includes("화재") || safeKw.includes("안전") || safeKw.includes("소방") || safeKw.includes("폭발") || safeKw.includes("사고") || safeKw.includes("위험")) {
           const rand = Math.random();
           if (rand > 0.5) {
-            title = `아파트 지하주차장 전기차 ${kw} 때문에 충전율 90% 제한 추진한다는데 진짜 효과가 있나요?`;
-            content = `저희 아파트 입대위에서 최근 전기차 ${kw} 뉴스를 보고 지하주차장 충전기 사용 시 배터리 완충을 90%로 강제 제한하는 안건을 상정했습니다. 혹시 완충을 피하는 게 진짜 ${kw} 예방에 과학적인 근거가 있는지, 그리고 지상 이전을 해야만 해결이 되는 문제인지 궁금합니다.`;
+            title = `아파트 ${loc} 전기차 ${safeKw} 방지 차원에서 충전율 90% 제한 추진한다는데 실효성이 있나요?`;
+            content = `저희 단지 입대위에서 최근 전기차 ${safeKw} 관련 이슈 때문에 ${loc} 충전기 사용 시 배터리 완충을 90%로 제한하는 규정을 검토 중입니다. ${model} 오너 입장에서 배터리 과충전 예방에 실제 효과가 있는지 전문가 의견 구합니다.`;
           } else {
-            title = `상가 지하 주차장에 설치된 완속충전기 주변에 소방 ${kw} 시설이 의무적으로 있어야 하나요?`;
-            content = `사무실이 있는 상가 건물 지하 2층 충전소 옆에 주차를 자주 하는데, 소화기나 질식소화포 같은 소방 ${kw} 안전장비가 전혀 보이지 않아 좀 우려스럽습니다. 현행 소방법상 전기차 충전 구역에 설치해야 하는 전용 소방 대책 기준이 어떻게 되는지 아시는 분 답변 부탁드립니다.`;
+            title = `${loc}에 설치된 완속충전기 주변 소방 ${safeKw} 안전설비 필수 기준 문의`;
+            content = `${model} 출퇴근 후 ${loc} 완속 충전기를 자주 이용하는데, 전용 질식소화포나 자동 열감지 소화장치가 없어 불안합니다. 현행 소방법상 전기차 충전 구역 필수 소방 ${safeKw} 가이드라인이 어떻게 되나요?`;
           }
           category = "안전/사고";
           anomalyScore = 80 + Math.floor(Math.random() * 15);
@@ -711,73 +718,79 @@ export default function App() {
         } else if (safeKw.includes("고장") || safeKw.includes("에러") || safeKw.includes("오류") || safeKw.includes("먹통") || safeKw.includes("고장신고") || safeKw.includes("불만")) {
           const rand = Math.random();
           if (rand > 0.5) {
-            title = `아파트 공용 완속충전기 액정이 ${kw}이고 카드를 대도 인식이 안 되는데 어디로 연락하나요?`;
-            content = `경비실에 물어봐도 관리사무소 소관이라 하고, 관리소에서는 충전기 제조사나 운영 업체 쪽에 접수하라고 하네요. 충전기 화면은 켜져 있는데 카드 터치가 전혀 반응이 없는데, 이런 경우 보통 대기업 운영사 고객센터에 접수하면 주말에도 기사님이 오시는지 궁금합니다.`;
+            title = `${loc} 완속충전기 카드 태그 오류 및 ${safeKw} 발생 시 신속 처리 방법`;
+            content = `${model} 충전을 위해 ${loc} 완속 충전기에 회원 카드를 태그했는데 '통신 에러'가 뜨면서 커넥터 잠금이 안 풀어집니다. 관리사무소와 운영사 CS센터 중 어디로 ${safeKw} 신고를 넣어야 기사님이 빠르게 출동하시나요?`;
           } else {
-            title = `전기차 급속충전 중 갑자기 통신 ${kw} 발생하면서 충전이 중단되는 현상 질문`;
-            content = `공용 급속충전기에서 충전 시작하고 10분 정도 지나니까 커넥터 통신 ${kw} 메시지가 뜨며 멈춰버렸습니다. 커넥터를 분리하려고 해도 잠금장치가 안 풀려서 10분 넘게 끙끙댔는데, 이런 고장 현상이 발생하는 원인과 긴급 대처 방법이 궁금합니다.`;
+            title = `전기차 급속 충전 중 커넥터 ${safeKw} 메시지 출력되며 중단되는 현상`;
+            content = `공용 급속충전기에서 ${model} 급속 충전 시작 후 10분 만에 충전기 화면에 커넥터 ${safeKw} 경고가 뜨며 멈췄습니다. 충전기 케이블 분리도 안 될 때 즉시 조치하는 팁이 궁금합니다.`;
           }
           category = "고장/불만";
           anomalyScore = 40 + Math.floor(Math.random() * 12);
         } else if (safeKw.includes("설치") || safeKw.includes("비용") || safeKw.includes("공사") || safeKw.includes("단독주택") || safeKw.includes("개인용") || safeKw.includes("구축")) {
           const rand = Math.random();
           if (rand > 0.5) {
-            title = `개인 단독주택 마당에 가정용 완속 비공용 충전기 ${kw} 비용이 얼마나 드나요?`;
-            content = `이번에 전기차를 출고하게 되어 주택 마당 담벼락에 개인용 7kW 충전기를 ${kw}하려고 알아보고 있습니다. 충전기 기기 가격 외에 한전 불입금이랑 계량기 공사, 선로 매설 작업 비용까지 포함하면 최종 예산이 어느 정도 들어가는지 설치해보신 분 경험담 공유 부탁드려요.`;
+            title = `단독주택 마당 개인용 7kW 완속 충전기 ${safeKw} 총 비용 및 한전 불입금 견적`;
+            content = `이번에 ${model} 차량을 새로 계약해서 주택 차고에 개인용 완속 충전기 ${safeKw}를 알아보는 중입니다. 기기 가격 외에 한전 불입금과 선로 공사비 합친 실제 설치 총비용이 얼마 정도 나오나요?`;
           } else {
-            title = `아파트에 전기차 충전기 의무 ${kw} 비율 법이 개정되었다는데 구축 아파트도 대상인가요?`;
-            content = `지어진 지 15년 된 구축 아파트 단지입니다. 법 개정으로 일정 규모 이상의 공동주택은 충전 시설을 의무적으로 ${kw}해야 한다고 들었는데, 입주민 주차 공간 부족 문제가 심각한 상황입니다. 구축 아파트도 강제 대상인지, 그리고 미이행 시 불이익이나 과태료가 있는지 궁금합니다.`;
+            title = `구축 아파트 단지 전기차 충전기 의무 ${safeKw} 법 개정 관련 입주민 질문`;
+            content = `지어진 지 15년 된 구축 아파트입니다. 친환경자동차법 개정으로 충전 시설 의무 ${safeKw} 비율을 맞추라는데, 주차 공간이 협소하여 입주민 간 갈등이 생기고 있습니다. 법적 구제 방안이 있는지 궁금합니다.`;
           }
           category = "설치 문의";
           anomalyScore = 15 + Math.floor(Math.random() * 15);
         } else if (safeKw.includes("요금") || safeKw.includes("전기세") || safeKw.includes("단가") || safeKw.includes("할인") || safeKw.includes("카드")) {
           const rand = Math.random();
           if (rand > 0.5) {
-            title = `계절별, 시간대별 전기차 충전 ${kw} 단가 비교표 볼 수 있는 곳이 있나요?`;
-            content = `완속 충전할 때 여름철 밤이랑 낮 요금이 많이 차이 난다고 들었는데, 한전이나 각 충전 운영사 사이트마다 요금표가 너무 복잡해서 보기 힘드네요. 경부하 시간대인 새벽 시간에 충전하면 전기세 부담을 최대로 줄일 수 있는 추천 ${kw} 혜택 카드가 있을까요?`;
+            title = `계절별, 시간대별 전기차 충전 ${safeKw} 단가 및 경부하 시간대 절감 팁`;
+            content = `${model} 출퇴근 운행 시 야간 경부하 시간대(23시~09시) 완속 충전을 이용 중인데, 계절별로 한전 기본 충전 ${safeKw} 단가가 어떻게 변동되는지 할인 카드 제휴 정보와 함께 추천해주세요.`;
           } else {
-            title = `전기차 완속 충전요금이 최근 들어 많이 오른 것 같은데 원래 가을에 ${kw}할인율 변동있나요?`;
-            content = `봄에 비해 가을철 전기차 충전 단가가 인상된 것 같은 기분인데 실제 한전 기준 계절별 단가 산정이 어떻게 변하는지 알고 싶습니다. 그리고 환경부 ${kw} 외에 완속 제휴 할인율이 높은 충전 멤버십 혜택 팁도 알려주세요.`;
+            title = `완속충전기 계절별 ${safeKw} 단가 인상 기준 및 멤버십 혜택 문의`;
+            content = `최근 완속 충전 요금이 조금 오른 느낌인데 환경부 카드 및 민간 충전 제휴사 로밍 ${safeKw} 할인율 최적화 방법이 있다면 공유 부탁드립니다.`;
           }
           category = "요금/효율";
           anomalyScore = 10 + Math.floor(Math.random() * 10);
         } else if (safeKw.includes("방해") || safeKw.includes("주차") || safeKw.includes("과태료") || safeKw.includes("신고") || safeKw.includes("차단") || safeKw.includes("충전소")) {
           const rand = Math.random();
-          const kwTerm = (kw && kw !== 'undefined') ? kw : '충전';
           if (rand > 0.5) {
-            title = `아파트 전기차 주차구역에 일반 내연기관 차량이 상습 ${kwTerm}하는데 바로 신고해도 되나요?`;
-            content = `저희 동 지하 1층 전기차 전용 구역에 하이브리드도 아닌 일반 가솔린 차량이 매일 밤 ${kwTerm}되어 있습니다. 안전신문고 앱으로 주민 신고를 하면 바로 과태료 10만 원이 부과되는 구체적인 성립 요건과 증거 사진 찍는 노하우가 궁금합니다.`;
+            title = `아파트 전기차 충전 구역 내 내연기관 차량 상습 ${safeKw} 과태료 신고 요건`;
+            content = `${loc} 충전기 앞에 일반 가솔린 차량이 매일 밤 ${safeKw} 주차되어 충전을 못 하고 있습니다. 안전신문고 앱 신고 시 증거 사진 촬영 기준과 10만 원 과태료 부과 절차가 어떻게 되나요?`;
           } else {
-            title = `전기차 급속 충전소에서 충전 끝난 후 1시간 이상 이동 안 할 때 벌금 ${kwTerm} 기준`;
-            content = `고속도로 휴게소 급속 충전기 앞에 충전이 끝난 채로 차주분이 밥 먹으러 갔는지 감감무소식입니다. 급속 충전 구역에서 충전 완료 후 장기 방치하는 것도 불법 충전 ${kwTerm} 행위로 단속되어 벌금이나 과태료 처분을 받는지 정확한 기준이 어떻게 되나요?`;
+            title = `급속충전기 충전 완료 후 장기 방치 차량 불법 ${safeKw} 단속 기준`;
+            content = `급속 충전소에서 충전 100% 완료 후 1시간 이상 차를 빼지 않는 차량이 있어 불편합니다. 충전 방해 행위 ${safeKw} 과태료 대상이 맞는지 질문드립니다.`;
           }
           category = "이용 방법";
           anomalyScore = 25 + Math.floor(Math.random() * 15);
         } else {
           const rand = Math.random();
-          const kwTerm = (kw && kw !== 'undefined') ? kw : '관리';
           if (rand > 0.5) {
-            title = `출퇴근용 전기차 신차 구입 예정인데 가정용 완속충전기 쓸만한 브랜드 ${kwTerm} 추천해주세요.`;
-            content = `개인 단독주택 주차장에 설치할 7kW 완속충전기를 구매하려고 합니다. 잔고장이 없고 스마트폰 앱 연동이 잘 돼서 야간 충전 예약이나 사용 전력 모니터링이 편한 검증된 완속충전기 가성비 브랜드가 있다면 ${kwTerm} 추천 부탁드려요.`;
+            title = `출퇴근용 ${model} 신차 구입 예정인데 완속충전기 가성비 브랜드 및 ${safeKw} 추천`;
+            content = `개인 주택 주차장에 설치할 7kW 완속 충전기를 찾고 있습니다. 잔고장이 없고 스마트폰 앱 연동으로 충전 스케줄링 및 사용 전력 모니터링이 편한 브랜드를 ${safeKw} 관점에서 추천해주세요.`;
           } else {
-            title = `전기차 타시는 선배님들, 초보가 알아야 할 겨울철 충전 배터리 효율 및 ${kwTerm} 팁 부탁드립니다.`;
-            content = `처음으로 전기차를 계약하고 인도 대기 중인 초보 오너입니다. 겨울철에 기온이 낮아지면 배터리 방전 속도도 빨라지고 완속/급속 충전 속도 자체도 엄청 느려진다고 들어서 걱정 많습니다. 혹시 히터 사용 시 주행 거리 단축 줄이는 팁이나 배터리 ${kwTerm} 노하우를 듣고 싶습니다.`;
+            title = `${model} 초보 오너입니다. 겨울철 충전 배터리 효율 및 ${safeKw} 관리 팁 부탁드립니다.`;
+            content = `처음으로 전기차를 계약하고 인도 대기 중인 초보 오너입니다. 겨울철 외기온 하강 시 배터리 방전 방지 및 완속/급속 충전 속도 유지 ${safeKw} 노하우를 듣고 싶습니다.`;
           }
           category = "기타";
         }
 
+        // Check deduplication
+        if (existingTitles.has(title)) {
+          // Add a unique model or location suffix to ensure 100% title uniqueness
+          title = `${title} (${model} 오너 질의_${Math.floor(Math.random() * 89 + 10)})`;
+        }
+
         if (existingTitles.has(title)) continue;
 
+        existingTitles.add(title);
+
         const simulatedQuestion: ScrapedQuestion = {
-          id: `q-scraped-offline-${Date.now()}-${encodeURIComponent(kw || 'sim').slice(0, 5)}`,
+          id: `q-scraped-offline-${Date.now()}-${i}-${Math.floor(Math.random() * 1000)}`,
           portal: "naver_jisinin",
           title,
           content,
           author: getRandomAuthor(),
-          url: sanitizePortalUrl(undefined, title, "naver_jisinin", [kw, "겨울철", "충전"]),
+          url: sanitizePortalUrl(undefined, title, "naver_jisinin", [safeKw, "전기차", "충전"]),
           scrapedAt: new Date().toISOString(),
           category: category as any,
-          keywords: [kw || '충전', "오프라인시뮬레이션", "실시간감지"],
+          keywords: [safeKw, "오프라인시뮬레이션", "실시간감지"],
           anomalyScore,
           isAnomaly,
           anomalyReason: isAnomaly ? anomalyReason : undefined,
@@ -789,7 +802,7 @@ export default function App() {
 
         if (isAnomaly) {
           const newAlert: SystemAlert = {
-            id: `alert-offline-${Date.now()}-${encodeURIComponent(kw || 'sim').slice(0, 5)}`,
+            id: `alert-offline-${Date.now()}-${i}`,
             timestamp: new Date().toISOString(),
             level: "critical",
             message: `🚨 긴급 경보 [실시간 위협 자동 탐지]: ${title}`,
@@ -800,16 +813,26 @@ export default function App() {
         }
       }
 
-      // If for some reason we couldn't create anything new, fallback to a single preset
+      // Fallback if needed
       if (newlyScrapedList.length === 0) {
-        const candidate = FALLBACK_QUESTIONS[Math.floor(Math.random() * FALLBACK_QUESTIONS.length)];
+        const unusedCandidates = FALLBACK_QUESTIONS.filter(c => !existingTitles.has(c.title));
+        const candidate = unusedCandidates.length > 0 
+          ? unusedCandidates[Math.floor(Math.random() * unusedCandidates.length)]
+          : FALLBACK_QUESTIONS[Math.floor(Math.random() * FALLBACK_QUESTIONS.length)];
+
+        let fallbackTitle = candidate.title;
+        if (existingTitles.has(fallbackTitle)) {
+          fallbackTitle = `${fallbackTitle} [실시간 문의 ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}]`;
+        }
+        existingTitles.add(fallbackTitle);
+
         const simulatedQuestion: ScrapedQuestion = {
           id: `q-scraped-offline-fallback-${Date.now()}`,
           portal: "naver_jisinin",
-          title: candidate.title,
+          title: fallbackTitle,
           content: candidate.content,
           author: getRandomAuthor(),
-          url: sanitizePortalUrl(candidate.url, candidate.title, "naver_jisinin", candidate.keywords),
+          url: sanitizePortalUrl(candidate.url, fallbackTitle, "naver_jisinin", candidate.keywords),
           scrapedAt: new Date().toISOString(),
           category: candidate.category,
           keywords: candidate.keywords,
