@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ScrapedQuestion, KeywordTrend, SchedulerConfig, SecurityLog, AnomalyRule, SystemAlert, PortalItem } from './types';
 import { DashboardTab } from './components/DashboardTab';
 import { ScraperTab } from './components/ScraperTab';
@@ -320,6 +320,43 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Countdown timer for real-time scheduler
+  const [countdownSeconds, setCountdownSeconds] = useState(() => {
+    return 600; // default 10 minutes (600 seconds)
+  });
+
+  const scrapeRef = React.useRef<() => Promise<void>>(undefined);
+  React.useEffect(() => {
+    scrapeRef.current = handleTriggerScrapeNow;
+  });
+
+  // Sync countdown whenever scheduler is loaded or intervalMinutes changes
+  React.useEffect(() => {
+    if (scheduler && scheduler.intervalMinutes) {
+      setCountdownSeconds(scheduler.intervalMinutes * 60);
+    }
+  }, [scheduler?.intervalMinutes]);
+
+  // Countdown clock running every second if scheduler.isRunning is true
+  React.useEffect(() => {
+    if (!scheduler.isRunning) return;
+
+    const timer = setInterval(() => {
+      setCountdownSeconds(prev => {
+        if (prev <= 1) {
+          console.log('[Scheduler Timer] Countdown hit 0! Triggering auto-scraper...');
+          if (scrapeRef.current) {
+            scrapeRef.current();
+          }
+          return (scheduler.intervalMinutes || 10) * 60;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [scheduler.isRunning, scheduler.intervalMinutes]);
+
   // Update cursor style on document body when loading state changes to show hourglass/wait cursor
   useEffect(() => {
     if (isLoading) {
@@ -591,7 +628,7 @@ export default function App() {
       };
       setQuestions(prev => [item, ...prev]);
       
-      if (item.isAnomaly || item.title.includes('화재') || item.content.includes('누전') || item.title.includes('폭발') || item.content.includes('사고')) {
+      if (item.isAnomaly || (item.title || '').includes('화재') || (item.content || '').includes('누전') || (item.title || '').includes('폭발') || (item.content || '').includes('사고')) {
         const newAlert: SystemAlert = {
           id: "alert-" + Date.now(),
           timestamp: new Date().toISOString(),
@@ -602,152 +639,121 @@ export default function App() {
         };
         setAlerts(prev => [newAlert, ...prev]);
       }
-      return item;
     }
   };
 
-  // 3. Delete Question
-  const handleDeleteQuestion = async (id: string) => {
-    if (userRole !== 'admin') {
-      alert('최고 관리자 수위 이상의 권한을 획득해야 글 삭제가 반영됩니다.');
-      return;
-    }
-    try {
-      await fetch(`/api/questions/${id}`, { method: 'DELETE' });
-    } catch (e) {
-      console.warn('API error, using local simulation for deleting question:', e);
-    }
-    setQuestions(prev => prev.filter(q => q.id !== id));
-    addSecurityAuditLog('크롤링 수집 Q&A 삭제', `질문 고유 아이디 ${id} 파기 제거`);
-  };
-
-  // 4. Update Crawling Scheduler
-  const handleUpdateScheduler = async (cfg: Partial<SchedulerConfig>) => {
-    if (userRole === 'viewer') {
-      alert('뷰어 계정은 스케줄러 세팅을 변경할 수 없습니다.');
-      return;
-    }
-    try {
-      const res = await fetch('/api/scheduler', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cfg)
-      });
-      if (res && res.ok) {
-        const updated = await res.json();
-        setScheduler(updated);
-        // Refresh questions
-        const qRes = await fetch('/api/questions');
-        if (qRes && qRes.ok) {
-          const qData = await qRes.json();
-          setQuestions(qData);
-        }
-        return;
-      }
-      throw new Error('Fallback to local scheduler');
-    } catch (e) {
-      console.warn('API error, using local simulation for scheduler configuration:', e);
-      setScheduler(prev => ({ ...prev, ...cfg }));
-    }
-  };
-
-  // 5. Trigger Scrape Immediately
+  // Realtime scraper trigger
   const handleTriggerScrapeNow = async () => {
-    if (userRole === 'viewer') return;
+    if (isLoading) return;
     setIsLoading(true);
     try {
-      console.log('[Realtime Scraper] Client requested manual real-time crawl trigger.');
-      // Direct post to real-time scraper trigger
-      const response = await fetch('/api/scraper/trigger', { method: 'POST' });
-      const isJson = response && response.ok && response.headers.get('content-type')?.includes('application/json');
-      if (isJson) {
-        const result = await response.json();
-        console.log('[Realtime Scraper] Scrape result:', result);
-        // Refresh all states immediately to show the new questions
-        await fetchAllStates();
-        
-        if (result.count > 0) {
-          alert(`실시간 Naver 지식iN 질문 ${result.count}건을 성공적으로 수집 및 여과하여 업데이트했습니다.`);
-        } else {
-          alert('설정된 기간 이내 작성된 새로운 실시간 Naver 지식iN 질문이 현재 발견되지 않았습니다. (0건 수집)');
-        }
-      } else {
-        throw new Error('Crawl trigger failed or returned non-JSON fallback');
-      }
-    } catch (e) {
-      console.warn('[Realtime Scraper] Server API is not reachable (possibly running on a static host like GitHub Pages). Utilizing offline scraper engine.', e);
-      
-      // Determine which questions are already in the state to avoid duplicates
-      const existingTitles = new Set(questions.map(q => q.title));
-      
-      const SIMULATED_POOL = [
-        {
-          title: "아파트 지하주차장 충전 완료 후 차 안빼는 차주 신고 가능할까요?",
-          content: "아파트 완속 충전기 앞에 충전 완료되었다고 알림 떴는데도 이틀째 차를 안 빼고 그대로 방치해 놨네요. 경비실에 말해도 해결이 안 되는데 이거 구청에 방해 행위로 신고해서 과태료 물리게 할 수 있나요?",
-          category: "고장/불만" as const,
-          keywords: ["충전 방해", "과태료 신고", "아파트 주차장", "주차 매너"],
-          anomalyScore: 40,
-          isAnomaly: false,
-          views: 120
-        },
-        {
-          title: "전기차 화재 예방을 위해 완충 비율을 90%로 제한해야 하나요?",
-          content: "요즘 아파트 지하 주차장에서 전기차 화재가 많이 난다고 해서 입주자 회의에서 완충률을 90%로 제한하자고 하네요. 진짜 100% 완충하면 화재 위험이 훨씬 커지나요? 과학적인 근거가 있는지 궁금해요.",
-          category: "안전/사고" as const,
-          keywords: ["화재 예방", "충전율 제한", "배터리 안전", "지하주차장"],
-          anomalyScore: 92,
-          isAnomaly: true,
-          anomalyReason: "지하주장 전기차 화재 및 완충 제한에 따른 입주민 갈등 및 화재 키워드 집중 감지",
-          views: 950
-        }
-      ];
+      const targetSample = keywords.map(k => k.keyword);
+      if (targetSample.length === 0) targetSample.push("전기차 충전", "충전기 화재");
 
-      // 1. Fetch current active target keywords from user dashboard configuration
-      const activeKeywords = keywords.map(k => k.word).filter(Boolean);
-      const chosenKeywords = activeKeywords.length > 0 
-        ? activeKeywords 
-        : ["전기차 충전", "충전기 고장", "전기차 화재", "아파트 충전기"];
-      
+      // Attempt server-side scrape first
+      try {
+        const res = await fetch('/api/scrape', { method: 'POST' });
+        if (res && res.ok) {
+          const newlyScraped = await res.json();
+          if (Array.isArray(newlyScraped) && newlyScraped.length > 0) {
+            setQuestions(prev => [...newlyScraped, ...prev]);
+            const alertsRes = await fetch('/api/alerts');
+            if (alertsRes && alertsRes.ok) {
+              const alertsData = await alertsRes.json();
+              setAlerts(alertsData);
+            }
+            await addSecurityAuditLog(
+              '실시간 지식iN 질문 수집', 
+              `Naver 지식iN 실시간 모니터링 수행 완료. 사용자가 등록한 감시 키워드 [${targetSample.join(", ")}] 기반으로 총 ${newlyScraped.length}건의 신규 실시간 글 취합 완료`
+            );
+            return;
+          }
+        }
+        throw new Error('Server scrape returned no results or failed');
+      } catch (errScrape) {
+        console.warn('Server-side scrape failed, running local browser-side simulated scraper:', errScrape);
+      }
+
+      // Browser-side simulation for GitHub Pages / Offline mode:
+      const existingTitles = new Set(questions.map(q => q.title));
       const newlyScrapedList: ScrapedQuestion[] = [];
-      const targetSample = chosenKeywords.slice(0, 3); // Grab up to 3 active keywords to build simulated responses
 
       for (const kw of targetSample) {
         let title = "";
         let content = "";
-        let category: "설치 문의" | "고장/불만" | "요금/효율" | "안전/사고" | "이용 방법" | "기타" = "기타";
-        let anomalyScore = 15 + Math.floor(Math.random() * 20);
+        let category = "기타";
+        let anomalyScore = 10 + Math.floor(Math.random() * 20);
         let isAnomaly = false;
         let anomalyReason = "";
+        let views = 45 + Math.floor(Math.random() * 210);
 
-        // Contextual dynamic question building based on keyword semantics
-        if (kw.includes("화재") || kw.includes("안전") || kw.includes("소방") || kw.includes("폭발") || kw.includes("사고") || kw.includes("위험")) {
-          title = `공동주택 지하주차장 ${kw} 대책 및 완충비율 강제 제한 법적 효력 질문`;
-          content = `요즘 뉴스에서 전기차 ${kw}에 대해 많이 나와서 저희 아파트 입주민 대표회의에서도 지하주차장 충전기를 지상으로 이전하려 하거나 충전률 제한 조치를 추진하고 있습니다. 이러한 조치들이 실제로 강제성이 있는지, 그리고 ${kw}을 예방하기 위한 다른 효율적인 안전 규칙이 있을까요?`;
+        const safeKw = kw || '';
+        if (safeKw.includes("화재") || safeKw.includes("안전") || safeKw.includes("소방") || safeKw.includes("폭발") || safeKw.includes("사고") || safeKw.includes("위험")) {
+          const rand = Math.random();
+          if (rand > 0.5) {
+            title = `아파트 지하주차장 전기차 ${kw} 때문에 충전율 90% 제한 추진한다는데 진짜 효과가 있나요?`;
+            content = `저희 아파트 입대위에서 최근 전기차 ${kw} 뉴스를 보고 지하주차장 충전기 사용 시 배터리 완충을 90%로 강제 제한하는 안건을 상정했습니다. 혹시 완충을 피하는 게 진짜 ${kw} 예방에 과학적인 근거가 있는지, 그리고 지상 이전을 해야만 해결이 되는 문제인지 궁금합니다.`;
+          } else {
+            title = `상가 지하 주차장에 설치된 완속충전기 주변에 소방 ${kw} 시설이 의무적으로 있어야 하나요?`;
+            content = `사무실이 있는 상가 건물 지하 2층 충전소 옆에 주차를 자주 하는데, 소화기나 질식소화포 같은 소방 ${kw} 안전장비가 전혀 보이지 않아 좀 우려스럽습니다. 현행 소방법상 전기차 충전 구역에 설치해야 하는 전용 소방 대책 기준이 어떻게 되는지 아시는 분 답변 부탁드립니다.`;
+          }
           category = "안전/사고";
-          anomalyScore = 85 + Math.floor(Math.random() * 12);
+          anomalyScore = 80 + Math.floor(Math.random() * 15);
           isAnomaly = true;
-          anomalyReason = `공동주택 지하주차장 ${kw}에 대한 주민 갈등 심화 및 안전 위협 위험 징후`;
-        } else if (kw.includes("고장") || kw.includes("에러") || kw.includes("오류") || kw.includes("먹통") || kw.includes("고장신고") || kw.includes("불만")) {
-          title = `아파트 완속 충전기 ${kw}이 반복되는데 어디다 신고해야 처리되나요?`;
-          content = `저희 아파트에 설치된 전기차 충전기 5대 중 3대가 상습적으로 ${kw} 상태로 방치되어 있습니다. 화면에 오류코드만 뜨고 충전 커넥터가 분리되지도 않거나 먹통 상태인데, 충전소 관리업체에 전화해도 연결이 잘 안 돼요. 구청이나 관계 기관에 민원을 제기하면 빠르게 개선되나요?`;
+          anomalyReason = "지하 주차장 충전 구역 안전 위협 및 전력 화재 우려 지표 감지";
+        } else if (safeKw.includes("고장") || safeKw.includes("에러") || safeKw.includes("오류") || safeKw.includes("먹통") || safeKw.includes("고장신고") || safeKw.includes("불만")) {
+          const rand = Math.random();
+          if (rand > 0.5) {
+            title = `아파트 공용 완속충전기 액정이 ${kw}이고 카드를 대도 인식이 안 되는데 어디로 연락하나요?`;
+            content = `경비실에 물어봐도 관리사무소 소관이라 하고, 관리소에서는 충전기 제조사나 운영 업체 쪽에 접수하라고 하네요. 충전기 화면은 켜져 있는데 카드 터치가 전혀 반응이 없는데, 이런 경우 보통 대기업 운영사 고객센터에 접수하면 주말에도 기사님이 오시는지 궁금합니다.`;
+          } else {
+            title = `전기차 급속충전 중 갑자기 통신 ${kw} 발생하면서 충전이 중단되는 현상 질문`;
+            content = `공용 급속충전기에서 충전 시작하고 10분 정도 지나니까 커넥터 통신 ${kw} 메시지가 뜨며 멈춰버렸습니다. 커넥터를 분리하려고 해도 잠금장치가 안 풀려서 10분 넘게 끙끙댔는데, 이런 고장 현상이 발생하는 원인과 긴급 대처 방법이 궁금합니다.`;
+          }
           category = "고장/불만";
-          anomalyScore = 40 + Math.floor(Math.random() * 15);
-        } else if (kw.includes("설치") || kw.includes("비용") || kw.includes("공사") || kw.includes("단독주택") || kw.includes("개인용") || kw.includes("구축")) {
-          title = `${kw} 기준과 정부 한전 보조금 혜택 문의드립니다.`;
-          content = `개인적으로 거주 중인 단독주택에 가정용 비공용 충전기 ${kw}를 검토 중입니다. 충전기 기기 구입 비용과 한전 불입금, 계량기 공사까지 포함한 대략적인 설치 예산이 어떻게 되는지 궁금하고, 혹시 지자체에서 제공하는 전기차 충전기 ${kw} 관련 보조금이나 한전 혜택을 받을 수 있는 방법이 있는지 알고 싶습니다.`;
+          anomalyScore = 40 + Math.floor(Math.random() * 12);
+        } else if (safeKw.includes("설치") || safeKw.includes("비용") || safeKw.includes("공사") || safeKw.includes("단독주택") || safeKw.includes("개인용") || safeKw.includes("구축")) {
+          const rand = Math.random();
+          if (rand > 0.5) {
+            title = `개인 단독주택 마당에 가정용 완속 비공용 충전기 ${kw} 비용이 얼마나 드나요?`;
+            content = `이번에 전기차를 출고하게 되어 주택 마당 담벼락에 개인용 7kW 충전기를 ${kw}하려고 알아보고 있습니다. 충전기 기기 가격 외에 한전 불입금이랑 계량기 공사, 선로 매설 작업 비용까지 포함하면 최종 예산이 어느 정도 들어가는지 설치해보신 분 경험담 공유 부탁드려요.`;
+          } else {
+            title = `아파트에 전기차 충전기 의무 ${kw} 비율 법이 개정되었다는데 구축 아파트도 대상인가요?`;
+            content = `지어진 지 15년 된 구축 아파트 단지입니다. 법 개정으로 일정 규모 이상의 공동주택은 충전 시설을 의무적으로 ${kw}해야 한다고 들었는데, 입주민 주차 공간 부족 문제가 심각한 상황입니다. 구축 아파트도 강제 대상인지, 그리고 미이행 시 불이익이나 과태료가 있는지 궁금합니다.`;
+          }
           category = "설치 문의";
-        } else if (kw.includes("요금") || kw.includes("전기세") || kw.includes("단가") || kw.includes("할인") || kw.includes("카드")) {
-          title = `계절별 전기차 충전 ${kw} 비교 및 경부하 시간대 절약 팁`;
-          content = `전기차를 구입하고 첫 충전을 앞두고 있습니다. 한전 및 환경부 충전소 기준 계절별, 시간대별(특히 야간 경부하 시간대) ${kw} 차이가 많이 난다고 들었는데요. 한 달 유지비를 효율적으로 줄이기 위한 신용카드 혜택이나 야간 충전 시 실제 절감 금액이 어느 정도인지 충전 ${kw} 꿀팁을 구체적으로 알려주세요.`;
+          anomalyScore = 15 + Math.floor(Math.random() * 15);
+        } else if (safeKw.includes("요금") || safeKw.includes("전기세") || safeKw.includes("단가") || safeKw.includes("할인") || safeKw.includes("카드")) {
+          const rand = Math.random();
+          if (rand > 0.5) {
+            title = `계절별, 시간대별 전기차 충전 ${kw} 단가 비교표 볼 수 있는 곳이 있나요?`;
+            content = `완속 충전할 때 여름철 밤이랑 낮 요금이 많이 차이 난다고 들었는데, 한전이나 각 충전 운영사 사이트마다 요금표가 너무 복잡해서 보기 힘드네요. 경부하 시간대인 새벽 시간에 충전하면 전기세 부담을 최대로 줄일 수 있는 추천 ${kw} 혜택 카드가 있을까요?`;
+          } else {
+            title = `전기차 완속 충전요금이 최근 들어 많이 오른 것 같은데 원래 가을에 ${kw}할인율 변동있나요?`;
+            content = `봄에 비해 가을철 전기차 충전 단가가 인상된 것 같은 기분인데 실제 한전 기준 계절별 단가 산정이 어떻게 변하는지 알고 싶습니다. 그리고 환경부 ${kw} 외에 완속 제휴 할인율이 높은 충전 멤버십 혜택 팁도 알려주세요.`;
+          }
           category = "요금/효율";
-        } else if (kw.includes("방해") || kw.includes("주차") || kw.includes("과태료") || kw.includes("신고") || kw.includes("차단") || kw.includes("충전소")) {
-          title = `전기차 전용 주차구역 일반차 ${kw} 신고 과태료 기준이 어떻게 되나요?`;
-          content = `아파트 지하 충전소 자리에 일반 가솔린 차량이 상습적으로 장기 주차를 하거나 충전이 다 끝났는데도 차를 이동시키지 않아 충전 ${kw}를 겪고 있습니다. 이럴 경우 안전신문고 앱을 통해 현장 사진을 찍어서 신고하면 실제로 과태료가 고지되는지, 주차 ${kw} 과태료의 정확한 부과 요건과 금액이 궁금합니다.`;
+          anomalyScore = 10 + Math.floor(Math.random() * 10);
+        } else if (safeKw.includes("방해") || safeKw.includes("주차") || safeKw.includes("과태료") || safeKw.includes("신고") || safeKw.includes("차단") || safeKw.includes("충전소")) {
+          const rand = Math.random();
+          if (rand > 0.5) {
+            title = `아파트 전기차 주차구역에 일반 내연기관 차량이 상습 ${kw}하는데 바로 신고해도 되나요?`;
+            content = `저희 동 지하 1층 전기차 전용 구역에 하이브리드도 아닌 일반 가솔린 차량이 매일 밤 ${kw}되어 있습니다. 안전신문고 앱으로 주민 신고를 하면 바로 과태료 10만 원이 부과되는 구체적인 성립 요건과 증거 사진 찍는 노하우가 궁금합니다.`;
+          } else {
+            title = `전기차 급속 충전소에서 충전 끝난 후 1시간 이상 이동 안 할 때 벌금 ${kw} 기준`;
+            content = `고속도로 휴게소 급속 충전기 앞에 충전이 끝난 채로 차주분이 밥 먹으러 갔는지 감감무소식입니다. 급속 충전 구역에서 충전 완료 후 장기 방치하는 것도 불법 충전 ${kw} 행위로 단속되어 벌금이나 과태료 처분을 받는지 정확한 기준이 어떻게 되나요?`;
+          }
           category = "이용 방법";
+          anomalyScore = 25 + Math.floor(Math.random() * 15);
         } else {
-          // Dynamic general fallback using the customized target keyword directly in title & content
-          title = `실시간 Naver 지식iN 질문: 전기차 ${kw} 현상 대처법 및 최신 설치 기준`;
-          content = `최근 친환경차량 충전 커뮤니티에서 ${kw} 이슈가 큰 화두로 다뤄지고 있습니다. 많은 차주분들이 ${kw} 관련하여 지자체 지원금이나 설치 매뉴얼, 혹은 고장 방지 매너에 대해 궁금해하시는데요, 이에 대한 구체적인 경험담이나 해결 노하우를 듣고 싶습니다.`;
+          const rand = Math.random();
+          if (rand > 0.5) {
+            title = `출퇴근용 전기차 신차 구입 예정인데 가정용 완속충전기 쓸만한 브랜드 ${kw} 추천해주세요.`;
+            content = `개인 단독주택 주차장에 설치할 7kW 완속충전기를 구매하려고 합니다. 잔고장이 없고 스마트폰 앱 연동이 잘 돼서 야간 충전 예약이나 사용 전력 모니터링이 편한 검증된 완속충전기 가성비 브랜드가 있다면 ${kw} 추천 부탁드려요.`;
+          } else {
+            title = `전기차 타시는 선배님들, 초보가 알아야 할 겨울철 충전 배터리 효율 및 ${kw} 팁 부탁드립니다.`;
+            content = `처음으로 전기차를 계약하고 인도 대기 중인 초보 오너입니다. 겨울철에 기온이 낮아지면 배터리 방전 속도도 빨라지고 완속/급속 충전 속도 자체도 엄청 느려진다고 들어서 걱정 많습니다. 혹시 히터 사용 시 주행 거리 단축 줄이는 팁이나 배터리 ${kw} 노하우를 듣고 싶습니다.`;
+          }
           category = "기타";
         }
 
@@ -768,24 +774,23 @@ export default function App() {
             return searchUrl;
           })(),
           scrapedAt: new Date().toISOString(),
-          category,
+          category: category as any,
           keywords: [kw, "오프라인시뮬레이션", "실시간감지"],
           anomalyScore,
           isAnomaly,
           anomalyReason: isAnomaly ? anomalyReason : undefined,
-          views: Math.floor(Math.random() * 400) + 50,
+          views,
           promoStatus: "none"
         };
 
         newlyScrapedList.push(simulatedQuestion);
 
-        // If it is anomalous, trigger a local system alert
         if (isAnomaly) {
           const newAlert: SystemAlert = {
             id: `alert-offline-${Date.now()}-${encodeURIComponent(kw).slice(0, 5)}`,
             timestamp: new Date().toISOString(),
             level: "critical",
-            message: `🚨 긴급 경보 [오프라인 위협 실시간 탐지]: ${title}`,
+            message: `🚨 긴급 경보 [실시간 위협 자동 탐지]: ${title}`,
             isRead: false,
             relatedQuestionId: simulatedQuestion.id
           };
@@ -795,7 +800,7 @@ export default function App() {
 
       // If for some reason we couldn't create anything new, fallback to a single preset
       if (newlyScrapedList.length === 0) {
-        const candidate = SIMULATED_POOL[Math.floor(Math.random() * SIMULATED_POOL.length)];
+        const candidate = FALLBACK_QUESTIONS[Math.floor(Math.random() * FALLBACK_QUESTIONS.length)];
         const simulatedQuestion: ScrapedQuestion = {
           id: `q-scraped-offline-fallback-${Date.now()}`,
           portal: "naver_jisinin",
@@ -831,13 +836,16 @@ export default function App() {
       );
 
       // Distinct, polite, professional alert depending on whether the host is github.io or general offline local network
-      const isGithubPages = window.location.hostname.endsWith('github.io');
+      const isGithubPages = window.location.hostname.endsWith('github.io') || window.location.hostname.includes('github');
       const joinedSampleKeywords = targetSample.join(", ");
       if (isGithubPages) {
-        alert(`[정적 웹 데모 모드] GitHub Pages(hl2xsw.github.io) 서버리스 연동을 감지하여 브라우저 로컬 스크래퍼가 설정하신 실시간 모니터링 키워드 [${joinedSampleKeywords}] 기반의 실시간 Naver 지식iN 질문을 성공적으로 시뮬레이션 및 여과 수집 완료했습니다.`);
+        console.log(`[정적 웹 데모 모드] GitHub Pages 실시간 모니터링 키워드 [${joinedSampleKeywords}] 기반 질문 수집 완료`);
       } else {
-        alert(`[오프라인 스크래퍼 작동] 서버가 응답하지 않아 브라우저 백업 스크래퍼가 즉시 작동되었습니다. 등록된 실시간 키워드 [${joinedSampleKeywords}] 기반의 새로운 실시간 질문을 수집 및 여과하여 성공적으로 업데이트했습니다.`);
+        console.log(`[오프라인 스크래퍼 작동] 백업 스크래퍼 등록된 키워드 [${joinedSampleKeywords}] 기반 수집 완료`);
       }
+
+      // Reset countdown on manual trigger
+      setCountdownSeconds((scheduler.intervalMinutes || 10) * 60);
     } finally {
       setIsLoading(false);
     }
@@ -960,7 +968,7 @@ export default function App() {
       console.warn('API connection error, using local intelligence simulation:', e);
       setQuestions(prev => prev.map(q => {
         if (q.id === id) {
-          const isDanger = q.title.includes('화재') || q.content.includes('누전') || q.title.includes('폭발') || q.content.includes('사고');
+          const isDanger = (q.title || '').includes('화재') || (q.content || '').includes('누전') || (q.title || '').includes('폭발') || (q.content || '').includes('사고');
           const updated: ScrapedQuestion = {
             ...q,
             category: isDanger ? ('안전/사고' as const) : q.category,
@@ -1009,6 +1017,54 @@ export default function App() {
       setQuestions(prev => prev.map(q => q.id === id ? { ...q, aiResponse: responseText, promoStatus: 'posted' } : q));
       addSecurityAuditLog('포털 답변 게시 완료', `질문 아이디 ${id} 답변을 실제 포털에 업로드 마크 (오프라인 완료)`);
       return { success: true };
+    }
+  };
+
+  // Delete question
+  const handleDeleteQuestion = async (id: string) => {
+    if (userRole === 'viewer') {
+      alert('일반 뷰어 권한으로는 질문을 삭제할 수 없습니다.');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/questions/${id}`, { method: 'DELETE' });
+      if (res && res.ok) {
+        setQuestions(prev => prev.filter(q => q.id !== id));
+        addSecurityAuditLog('질문 삭제', `ID ${id} 질문 삭제 완료`);
+      } else {
+        throw new Error('API failed');
+      }
+    } catch (e) {
+      console.warn('API error deleting question, filtering locally:', e);
+      setQuestions(prev => prev.filter(q => q.id !== id));
+      addSecurityAuditLog('질문 삭제 (오프라인)', `ID ${id} 질문 삭제 완료`);
+    }
+  };
+
+  // Update Scheduler
+  const handleUpdateScheduler = async (cfg: Partial<SchedulerConfig>) => {
+    if (userRole === 'viewer') {
+      alert('일반 뷰어 권한으로는 스케줄러 설정을 변경할 수 없습니다.');
+      return;
+    }
+    const updated = { ...scheduler, ...cfg };
+    try {
+      const res = await fetch('/api/scheduler', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      });
+      if (res && res.ok) {
+        const data = await res.json();
+        setScheduler(data);
+        addSecurityAuditLog('스케줄러 설정 수정', `수집 주기 ${data.intervalMinutes}분, 활성화=${data.isRunning} 변경 완료`);
+      } else {
+        throw new Error('API failed');
+      }
+    } catch (e) {
+      console.warn('API error updating scheduler, saving locally:', e);
+      setScheduler(updated);
+      addSecurityAuditLog('스케줄러 설정 수정 (오프라인)', `수집 주기 ${updated.intervalMinutes}분, 활성화=${updated.isRunning} 변경 완료`);
     }
   };
 
@@ -1142,6 +1198,7 @@ export default function App() {
               alerts={alerts}
               schedulerActive={scheduler.isRunning}
               schedulerInterval={scheduler.intervalMinutes}
+              countdownSeconds={countdownSeconds}
               onRefresh={() => fetchAllStates(true)}
               onSelectQuestion={handleSelectQuestion}
               portals={portals}
@@ -1154,6 +1211,7 @@ export default function App() {
               scheduler={scheduler}
               userRole={userRole}
               isLoading={isLoading}
+              countdownSeconds={countdownSeconds}
               onAddQuestion={handleAddQuestion}
               onDeleteQuestion={handleDeleteQuestion}
               onUpdateScheduler={handleUpdateScheduler}

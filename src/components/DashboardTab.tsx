@@ -9,6 +9,7 @@ interface DashboardTabProps {
   alerts: SystemAlert[];
   schedulerActive: boolean;
   schedulerInterval?: number;
+  countdownSeconds?: number;
   onRefresh: () => void;
   onSelectQuestion: (id: string) => void;
   portals?: PortalItem[];
@@ -20,6 +21,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   alerts,
   schedulerActive,
   schedulerInterval = 10,
+  countdownSeconds,
   onRefresh,
   onSelectQuestion,
   portals
@@ -59,7 +61,16 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <span className={`relative inline-flex rounded-full h-3.5 w-3.5 ${schedulerActive ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
             </span>
             <h2 className="text-sm font-semibold text-gray-800">
-              {schedulerActive ? `실시간 스케줄러 수집 작동 중 (${schedulerInterval}분 주기)` : '수집 스케줄러 일시 정지됨'}
+              {schedulerActive ? (
+                <span>
+                  실시간 스케줄러 수집 작동 중 ({schedulerInterval}분 주기) - 
+                  <span className="ml-1.5 text-indigo-600 font-extrabold animate-pulse bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">
+                    자동 수집 갱신까지 {countdownSeconds !== undefined ? `${Math.floor(countdownSeconds / 60)}분 ${countdownSeconds % 60}초` : `${schedulerInterval}분`} 남음
+                  </span>
+                </span>
+              ) : (
+                '수집 스케줄러 일시 정지됨'
+              )}
             </h2>
           </div>
           <p className="text-xs text-gray-500 mt-1">네이버, 다음, 디시, 펨코, 인벤, 보배드림 등 8대 매체 전기차 질문 상시 관측</p>
@@ -169,9 +180,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <div className="w-full bg-slate-50 h-2.5 rounded-full overflow-hidden border border-gray-150">
                     <div 
                       className={`h-full rounded-full transition-all duration-500 ${
-                        p.id.includes('naver') ? 'bg-emerald-500' :
-                        p.id.includes('daum') ? 'bg-blue-500' :
-                        p.id.includes('dcinside') ? 'bg-gray-600' : 'bg-indigo-500'
+                        (p.id || '').includes('naver') ? 'bg-emerald-500' :
+                        (p.id || '').includes('daum') ? 'bg-blue-500' :
+                        (p.id || '').includes('dcinside') ? 'bg-gray-600' : 'bg-indigo-500'
                       }`}
                       style={{ width: `${Math.round((count / maxVal) * 100)}%` }}
                     ></div>

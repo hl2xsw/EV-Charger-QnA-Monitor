@@ -337,9 +337,9 @@ app.get("/api/questions", (req, res) => {
   if (search) {
     const searchLow = (search as string).toLowerCase();
     filtered = filtered.filter(
-      q => q.title.toLowerCase().includes(searchLow) ||
-           q.content.toLowerCase().includes(searchLow) ||
-           q.author.toLowerCase().includes(searchLow)
+      q => (q.title || '').toLowerCase().includes(searchLow) ||
+           (q.content || '').toLowerCase().includes(searchLow) ||
+           (q.author || '').toLowerCase().includes(searchLow)
     );
   }
 
@@ -360,7 +360,7 @@ app.post("/api/questions", (req, res) => {
   let anomalyReason = "";
   let anomalyScore = Math.floor(Math.random() * 25); // Baseline randomized safety coefficient
 
-  const contentAndTitle = (title + " " + content).toLowerCase();
+  const contentAndTitle = ((title || "") + " " + (content || "")).toLowerCase();
   
   // Rule checks
   if (contentAndTitle.includes("화재") || contentAndTitle.includes("불") || contentAndTitle.includes("연기") || contentAndTitle.includes("전쟁")) {
@@ -601,9 +601,9 @@ app.post("/api/questions/:id/classify", async (req, res) => {
   }
 
   // Fallback if SDK fails or not configured
-  question.category = question.title.includes("설치") ? "설치 문의" :
-                      question.title.includes("고장") || question.title.includes("안됨") ? "고장/불만" :
-                      question.title.includes("요금") || question.title.includes("가격") ? "요금/효율" : "기타";
+  question.category = (question.title || '').includes("설치") ? "설치 문의" :
+                      (question.title || '').includes("고장") || (question.title || '').includes("안됨") ? "고장/불만" :
+                      (question.title || '').includes("요금") || (question.title || '').includes("가격") ? "요금/효율" : "기타";
   question.keywords = [...new Set([...question.keywords, "AI보정", "전기차분석"])];
   res.json({ success: true, updatedQuestion: question, note: "Offline local classifications computed" });
 });
@@ -719,13 +719,13 @@ app.post("/api/keywords", (req, res) => {
   const newKw: KeywordTrend = {
     word: lowWord,
     count: 1,
-    sentiment: lowWord.includes("불안") || lowWord.includes("화재") || lowWord.includes("부족") ? "negative" : "positive",
+    sentiment: (lowWord || "").includes("불안") || (lowWord || "").includes("화재") || (lowWord || "").includes("부족") ? "negative" : "positive",
     trendRate: +(Math.random() * 20).toFixed(1)
   };
   keywordTrends.push(newKw);
 
   // Sync scheduled crawl topics
-  if (!schedulerConfig.targetKws.includes(lowWord)) {
+  if (!(schedulerConfig.targetKws || []).includes(lowWord)) {
     schedulerConfig.targetKws.push(lowWord);
   }
 
@@ -812,7 +812,7 @@ async function executeRealtimePortalScraping(): Promise<ScrapedQuestion[]> {
         }
 
         // Strictly verify that it is a real Naver KIN post link (to avoid advertisements, powerlinks, or external spam redirects)
-        if (!linkUrl.includes("/qna/detail") && !linkUrl.includes("qna/detail.naver")) {
+        if (!linkUrl || (!linkUrl.includes("/qna/detail") && !linkUrl.includes("qna/detail.naver"))) {
           return;
         }
 
@@ -836,16 +836,18 @@ async function executeRealtimePortalScraping(): Promise<ScrapedQuestion[]> {
         if (title.length < 5 || newlyScraped.some(q => q.title === title) || scrapedQuestions.some(q => q.title === title)) return;
 
         // Auto categorizer
+        const safeTitle = title || '';
+        const safeContent = content || '';
         let category: any = "기타";
-        if (title.includes("설치") || title.includes("공사") || title.includes("비용") || title.includes("사설")) {
+        if (safeTitle.includes("설치") || safeTitle.includes("공사") || safeTitle.includes("비용") || safeTitle.includes("사설")) {
           category = "설치 문의";
-        } else if (title.includes("고장") || title.includes("오류") || title.includes("에러") || title.includes("멈춤") || title.includes("않습") || title.includes("통신") || title.includes("안되")) {
+        } else if (safeTitle.includes("고장") || safeTitle.includes("오류") || safeTitle.includes("에러") || safeTitle.includes("멈춤") || safeTitle.includes("않습") || safeTitle.includes("통신") || safeTitle.includes("안되")) {
           category = "고장/불만";
-        } else if (title.includes("요금") || title.includes("한전") || title.includes("단가") || title.includes("전기세") || title.includes("비용") || title.includes("카드")) {
+        } else if (safeTitle.includes("요금") || safeTitle.includes("한전") || safeTitle.includes("단가") || safeTitle.includes("전기세") || safeTitle.includes("비용") || safeTitle.includes("카드")) {
           category = "요금/효율";
-        } else if (title.includes("화재") || title.includes("사고") || title.includes("위험") || title.includes("안전") || title.includes("차단") || title.includes("매연") || title.includes("소방")) {
+        } else if (safeTitle.includes("화재") || safeTitle.includes("사고") || safeTitle.includes("위험") || safeTitle.includes("안전") || safeTitle.includes("차단") || safeTitle.includes("매연") || safeTitle.includes("소방")) {
           category = "안전/사고";
-        } else if (title.includes("이용") || title.includes("방법") || title.includes("결제") || title.includes("어떻게")) {
+        } else if (safeTitle.includes("이용") || safeTitle.includes("방법") || safeTitle.includes("결제") || safeTitle.includes("어떻게")) {
           category = "이용 방법";
         }
 
@@ -853,15 +855,15 @@ async function executeRealtimePortalScraping(): Promise<ScrapedQuestion[]> {
         let isAnomaly = false;
         let anomalyReason = "";
 
-        if (title.includes("화재") || content.includes("화재") || title.includes("소방") || content.includes("소방")) {
+        if (safeTitle.includes("화재") || safeContent.includes("화재") || safeTitle.includes("소방") || safeContent.includes("소방")) {
           isAnomaly = true;
           anomalyScore = 75 + Math.floor(Math.random() * 20);
           anomalyReason = "아파트 등 공동주택 지하충전소 안전/소방 및 화재 징후 포착";
-        } else if (title.includes("누전") || content.includes("피복") || title.includes("감전") || content.includes("누수") || title.includes("빗물")) {
+        } else if (safeTitle.includes("누전") || safeContent.includes("피복") || safeTitle.includes("감전") || safeContent.includes("누수") || safeTitle.includes("빗물")) {
           isAnomaly = true;
           anomalyScore = 88 + Math.floor(Math.random() * 10);
           anomalyReason = "실외 노출형 단자 우천시 빗물 유입으로 누설 전류 위험 증대";
-        } else if (title.includes("고장") || content.includes("먹통") || content.includes("안돼요")) {
+        } else if (safeTitle.includes("고장") || safeContent.includes("먹통") || safeContent.includes("안돼요")) {
           anomalyScore = 32 + Math.floor(Math.random() * 18);
         }
 
@@ -909,27 +911,28 @@ async function executeRealtimePortalScraping(): Promise<ScrapedQuestion[]> {
       let isAnomaly = false;
       let anomalyReason = "";
 
-      if (kw.includes("화재") || kw.includes("안전") || kw.includes("소방") || kw.includes("폭발") || kw.includes("사고") || kw.includes("위험")) {
+      const safeKw = kw || '';
+      if (safeKw.includes("화재") || safeKw.includes("안전") || safeKw.includes("소방") || safeKw.includes("폭발") || safeKw.includes("사고") || safeKw.includes("위험")) {
         title = `공동주택 지하주차장 ${kw} 대책 및 완충비율 강제 제한 법적 효력 질문`;
         content = `요즘 뉴스에서 전기차 ${kw}에 대해 많이 나와서 저희 아파트 입주민 대표회의에서도 지하주차장 충전기를 지상으로 이전하려 하거나 충전률 제한 조치를 추진하고 있습니다. 이러한 조치들이 실제로 강제성이 있는지, 그리고 ${kw}을 예방하기 위한 다른 효율적인 안전 규칙이 있을까요?`;
         category = "안전/사고";
         anomalyScore = 85 + Math.floor(Math.random() * 12);
         isAnomaly = true;
         anomalyReason = `공동주택 지하주차장 ${kw}에 대한 주민 갈등 심화 및 안전 위협 위험 징후`;
-      } else if (kw.includes("고장") || kw.includes("에러") || kw.includes("오류") || kw.includes("먹통") || kw.includes("고장신고") || kw.includes("불만")) {
+      } else if (safeKw.includes("고장") || safeKw.includes("에러") || safeKw.includes("오류") || safeKw.includes("먹통") || safeKw.includes("고장신고") || safeKw.includes("불만")) {
         title = `아파트 완속 충전기 ${kw}이 반복되는데 어디다 신고해야 처리되나요?`;
         content = `저희 아파트에 설치된 전기차 충전기 5대 중 3대가 상습적으로 ${kw} 상태로 방치되어 있습니다. 화면에 오류코드만 뜨고 충전 커넥터가 분리되지도 않거나 먹통 상태인데, 충전소 관리업체에 전화해도 연결이 잘 안 돼요. 구청이나 관계 기관에 민원을 제기하면 빠르게 개선되나요?`;
         category = "고장/불만";
         anomalyScore = 40 + Math.floor(Math.random() * 15);
-      } else if (kw.includes("설치") || kw.includes("비용") || kw.includes("공사") || kw.includes("단독주택") || kw.includes("개인용") || kw.includes("구축")) {
+      } else if (safeKw.includes("설치") || safeKw.includes("비용") || safeKw.includes("공사") || safeKw.includes("단독주택") || safeKw.includes("개인용") || safeKw.includes("구축")) {
         title = `${kw} 기준과 정부 한전 보조금 혜택 문의드립니다.`;
         content = `개인적으로 거주 중인 단독주택에 가정용 비공용 충전기 ${kw}를 검토 중입니다. 충전기 기기 구입 비용과 한전 불입금, 계량기 공사까지 포함한 대략적인 설치 예산이 어떻게 되는지 궁금하고, 혹시 지자체에서 제공하는 전기차 충전기 ${kw} 관련 보조금이나 한전 혜택을 받을 수 있는 방법이 있는지 알고 싶습니다.`;
         category = "설치 문의";
-      } else if (kw.includes("요금") || kw.includes("전기세") || kw.includes("단가") || kw.includes("할인") || kw.includes("카드")) {
+      } else if (safeKw.includes("요금") || safeKw.includes("전기세") || safeKw.includes("단가") || safeKw.includes("할인") || safeKw.includes("카드")) {
         title = `계절별 전기차 충전 ${kw} 비교 및 경부하 시간대 절약 팁`;
         content = `전기차를 구입하고 첫 충전을 앞두고 있습니다. 한전 및 환경부 충전소 기준 계절별, 시간대별(특히 야간 경부하 시간대) ${kw} 차이가 많이 난다고 들었는데요. 한 달 유지비를 효율적으로 줄이기 위한 신용카드 혜택이나 야간 충전 시 실제 절감 금액이 어느 정도인지 충전 ${kw} 꿀팁을 구체적으로 알려주세요.`;
         category = "요금/효율";
-      } else if (kw.includes("방해") || kw.includes("주차") || kw.includes("과태료") || kw.includes("신고") || kw.includes("차단") || kw.includes("충전소")) {
+      } else if (safeKw.includes("방해") || safeKw.includes("주차") || safeKw.includes("과태료") || safeKw.includes("신고") || safeKw.includes("차단") || safeKw.includes("충전소")) {
         title = `전기차 전용 주차구역 일반차 ${kw} 신고 과태료 기준이 어떻게 되나요?`;
         content = `아파트 지하 충전소 자리에 일반 가솔린 차량이 상습적으로 장기 주차를 하거나 충전이 다 끝났는데도 차를 이동시키지 않아 충전 ${kw}를 겪고 있습니다. 이럴 경우 안전신문고 앱을 통해 현장 사진을 찍어서 신고하면 실제로 과태료가 고지되는지, 주차 ${kw} 과태료의 정확한 부과 요건과 금액이 궁금합니다.`;
         category = "이용 방법";

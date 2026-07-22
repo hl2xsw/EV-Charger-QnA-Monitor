@@ -8,6 +8,7 @@ interface ScraperTabProps {
   scheduler: SchedulerConfig;
   userRole: 'admin' | 'manager' | 'viewer';
   isLoading?: boolean;
+  countdownSeconds?: number;
   onAddQuestion: (q: Partial<ScrapedQuestion>) => Promise<any>;
   onDeleteQuestion: (id: string) => Promise<any>;
   onUpdateScheduler: (cfg: Partial<SchedulerConfig>) => Promise<any>;
@@ -22,6 +23,7 @@ export const ScraperTab: React.FC<ScraperTabProps> = ({
   scheduler,
   userRole,
   isLoading = false,
+  countdownSeconds,
   onAddQuestion,
   onDeleteQuestion,
   onUpdateScheduler,
@@ -67,9 +69,9 @@ export const ScraperTab: React.FC<ScraperTabProps> = ({
   // Filter logic
   const filteredQuestions = questions.filter(q => {
     const matchesSearch = 
-      q.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      q.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      q.author.toLowerCase().includes(searchTerm.toLowerCase());
+      (q.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (q.content || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (q.author || '').toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesPortal = !selectedPortal || q.portal === selectedPortal;
     const matchesCategory = !selectedCategory || q.category === selectedCategory;
@@ -136,10 +138,10 @@ export const ScraperTab: React.FC<ScraperTabProps> = ({
   const handleAddKeywordTag = async () => {
     if (!newKeyword.trim() || userRole === 'viewer') return;
     const cleanWord = newKeyword.trim();
-    if (scheduler.targetKws.includes(cleanWord)) return;
+    if ((scheduler.targetKws || []).includes(cleanWord)) return;
 
     try {
-      const updatedList = [...scheduler.targetKws, cleanWord];
+      const updatedList = [...(scheduler.targetKws || []), cleanWord];
       await onUpdateScheduler({ targetKws: updatedList });
       // update backend keyword analytics automatically
       await fetch('/api/keywords', {
@@ -156,7 +158,7 @@ export const ScraperTab: React.FC<ScraperTabProps> = ({
   const handleRemoveKeywordTag = async (word: string) => {
     if (userRole === 'viewer') return;
     try {
-      const updatedList = scheduler.targetKws.filter(w => w !== word);
+      const updatedList = (scheduler.targetKws || []).filter(w => w !== word);
       await onUpdateScheduler({ targetKws: updatedList });
       // Delete from analytic pool
       await fetch(`/api/keywords/${encodeURIComponent(word)}`, { method: 'DELETE' });
@@ -185,7 +187,15 @@ export const ScraperTab: React.FC<ScraperTabProps> = ({
           <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
             <div>
               <span className="text-xs font-bold text-slate-700">시뮬레이션 스케줄러</span>
-              <p className="text-[10px] text-gray-400 mt-0.5">{scheduler.isRunning ? '상시 작동 중' : '정지 상태'}</p>
+              <p className="text-[10px] mt-0.5 font-bold">
+                {scheduler.isRunning ? (
+                  <span className="text-emerald-600 animate-pulse">
+                    상시 작동 중 ({countdownSeconds !== undefined ? `${Math.floor(countdownSeconds / 60)}분 ${countdownSeconds % 60}초` : `${scheduler.intervalMinutes}분`} 남음)
+                  </span>
+                ) : (
+                  <span className="text-rose-500">정지 상태</span>
+                )}
+              </p>
             </div>
             <button
               onClick={handleToggleScheduler}
@@ -299,7 +309,7 @@ export const ScraperTab: React.FC<ScraperTabProps> = ({
 
           {/* Tag cloud layout */}
           <div className="flex flex-wrap gap-1.5">
-            {scheduler.targetKws.map(word => (
+            {(scheduler.targetKws || []).map(word => (
               <span 
                 key={word} 
                 className="inline-flex items-center gap-1 text-[11px] bg-slate-100 border border-slate-200 text-slate-700 px-2 py-0.5 rounded-md font-medium"
