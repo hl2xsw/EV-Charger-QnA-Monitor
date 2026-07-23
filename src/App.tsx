@@ -781,14 +781,22 @@ export default function App() {
 
         existingTitles.add(title);
 
+        let maxHoursAgo = 24 * 7;
+        if (scheduler.period === '1m') maxHoursAgo = 24 * 30;
+        else if (scheduler.period === '3m') maxHoursAgo = 24 * 90;
+        else if (scheduler.period === 'all') maxHoursAgo = 24 * 180;
+
+        const randomHoursAgo = Math.random() * (maxHoursAgo - 0.5) + 0.1;
+        const scrapedAtTime = new Date(Date.now() - randomHoursAgo * 3600000).toISOString();
+
         const simulatedQuestion: ScrapedQuestion = {
           id: `q-scraped-offline-${Date.now()}-${i}-${Math.floor(Math.random() * 1000)}`,
           portal: "naver_jisinin",
           title,
           content,
           author: getRandomAuthor(),
-          url: sanitizePortalUrl(undefined, title, "naver_jisinin", [safeKw, "전기차", "충전"]),
-          scrapedAt: new Date().toISOString(),
+          url: sanitizePortalUrl(undefined, title, "naver_jisinin", [safeKw, "전기차", "충전"], scheduler.period),
+          scrapedAt: scrapedAtTime,
           category: category as any,
           keywords: [safeKw, "오프라인시뮬레이션", "실시간감지"],
           anomalyScore,

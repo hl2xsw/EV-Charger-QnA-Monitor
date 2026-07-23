@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ScrapedQuestion, SchedulerConfig, PortalType, PortalItem } from '../types';
 import { PORTAL_MAP, CATEGORY_COLORS } from '../lib/constants';
 import { Search, SlidersHorizontal, Calendar, Plus, Play, Pause, Save, Trash2, ShieldAlert, Sparkles, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react';
-import { sanitizePortalUrl } from '../lib/urlUtils';
+import { sanitizePortalUrl, isWithinPeriod } from '../lib/urlUtils';
 
 interface ScraperTabProps {
   questions: ScrapedQuestion[];
@@ -77,8 +77,9 @@ export const ScraperTab: React.FC<ScraperTabProps> = ({
     const matchesPortal = !selectedPortal || q.portal === selectedPortal;
     const matchesCategory = !selectedCategory || q.category === selectedCategory;
     const matchesAnomaly = !onlyAnomalies || q.isAnomaly;
+    const matchesPeriod = isWithinPeriod(q.scrapedAt, period);
 
-    return matchesSearch && matchesPortal && matchesCategory && matchesAnomaly;
+    return matchesSearch && matchesPortal && matchesCategory && matchesAnomaly && matchesPeriod;
   });
 
   const handleManualSubmit = async (e: React.FormEvent) => {
@@ -247,19 +248,28 @@ export const ScraperTab: React.FC<ScraperTabProps> = ({
                   'all': '전체'
                 };
                 return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setPeriod(p)}
-                    disabled={userRole === 'viewer'}
-                    className={`py-1 text-[10px] font-medium rounded-md transition-all ${
-                      period === p
-                        ? 'bg-white text-indigo-600 shadow-xs border border-slate-200/50'
-                        : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'
-                    } disabled:opacity-50`}
-                  >
-                    {labels[p]}
-                  </button>
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={async () => {
+                        setPeriod(p);
+                        if (userRole !== 'viewer') {
+                          try {
+                            await onUpdateScheduler({ period: p });
+                          } catch (e) {
+                            console.error(e);
+                          }
+                        }
+                      }}
+                      disabled={userRole === 'viewer'}
+                      className={`py-1 text-[10px] font-medium rounded-md transition-all ${
+                        period === p
+                          ? 'bg-white text-indigo-600 shadow-xs border border-slate-200/50'
+                          : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'
+                      } disabled:opacity-50`}
+                    >
+                      {labels[p]}
+                    </button>
                 );
               })}
             </div>
@@ -624,7 +634,7 @@ export const ScraperTab: React.FC<ScraperTabProps> = ({
                         {/* Operational elements */}
                         <td className="px-4 py-3.5 text-right space-y-1">
                           <a
-                            href={sanitizePortalUrl(q.url, q.title, q.portal, q.keywords)}
+                            href={sanitizePortalUrl(q.url, q.title, q.portal, q.keywords, period)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded transition-colors mr-1"

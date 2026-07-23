@@ -780,8 +780,14 @@ async function executeRealtimePortalScraping(): Promise<ScrapedQuestion[]> {
   const periodParam = schedulerConfig.period || '1w';
   for (const keyword of searchKws) {
     try {
-      console.log(`[Realtime Scraper] Scraping real Naver KIN Search Q&A for target keyword: "${keyword}" (Period: ${periodParam})`);
-      let searchUrl = `https://kin.naver.com/search/list.naver?query=${encodeURIComponent(keyword)}&sort=date`;
+      // 1. Always scope search query with EV/electric vehicle context so Naver doesn't return unrelated phone chargers or vacuum cleaners
+      let searchQuery = keyword;
+      if (!searchQuery.includes("전기차") && !searchQuery.includes("EV") && !searchQuery.includes("자동차")) {
+        searchQuery = `전기차 ${keyword}`;
+      }
+
+      console.log(`[Realtime Scraper] Scraping real Naver KIN Search Q&A for target keyword: "${keyword}" -> Query: "${searchQuery}" (Period: ${periodParam})`);
+      let searchUrl = `https://kin.naver.com/search/list.naver?query=${encodeURIComponent(searchQuery)}&sort=date`;
       if (periodParam !== 'all') {
         searchUrl += `&period=${periodParam}`;
       }
@@ -803,7 +809,7 @@ async function executeRealtimePortalScraping(): Promise<ScrapedQuestion[]> {
       
       let countForKeyword = 0;
       bxItems.each((i, el) => {
-        if (countForKeyword >= 3) return; // Limit to 3 items per keyword to ensure a balanced, non-spammy real-time set
+        if (countForKeyword >= 3) return; // Limit to 3 items per keyword
 
         // Find title anchor
         const aTag = $(el).find("dt > a, dt.title > a").first();
@@ -814,7 +820,7 @@ async function executeRealtimePortalScraping(): Promise<ScrapedQuestion[]> {
           linkUrl = "https://kin.naver.com" + linkUrl;
         }
 
-        // Strictly verify that it is a real Naver KIN post link (to avoid advertisements, powerlinks, or external spam redirects)
+        // Strictly verify that it is a real Naver KIN post link
         if (!linkUrl || (!linkUrl.includes("/qna/detail") && !linkUrl.includes("qna/detail.naver"))) {
           return;
         }
@@ -837,6 +843,18 @@ async function executeRealtimePortalScraping(): Promise<ScrapedQuestion[]> {
         content = content.replace(/\s+/g, " ").slice(0, 250);
 
         if (title.length < 5 || newlyScraped.some(q => q.title === title) || scrapedQuestions.some(q => q.title === title)) return;
+
+        // 2. Strict EV relevance verification: discard non-EV subjects (e.g. vacuum cleaner, headset, drunk driving)
+        const fullText = (title + " " + content).toLowerCase();
+        const nonEvBlacklist = ["무선청소기", "청소기", "헤드셋", "이어폰", "음주운전", "스마트폰", "노트북", "핸드폰", "보조배터리", "아이폰", "갤럭시", "소니", "wh-720n", "에어팟", "면허", "벌금", "음주 수치"];
+        if (nonEvBlacklist.some(b => fullText.includes(b))) {
+          return;
+        }
+
+        const evTerms = ["전기차", "전기 자동차", "ev", "완속", "급속", "충전기", "배터리", "아파트 충전", "충전소", "아이오닉", "테슬라", "ev6", "ev9", "레이 ev", "코나 ev", "포터 ev", "충전 구역", "차고"];
+        if (!evTerms.some(term => fullText.includes(term))) {
+          return;
+        }
 
         // Auto categorizer
         const safeTitle = title || '';
