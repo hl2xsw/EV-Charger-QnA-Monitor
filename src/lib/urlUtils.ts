@@ -5,48 +5,71 @@ export function sanitizePortalUrl(
   keywords: string[] = [],
   period: string = '1w'
 ): string {
-  // 1. If rawUrl is an actual real direct post link from live scraping, keep it!
-  const isRealScrapedUrl = rawUrl && 
-    rawUrl.startsWith('http') && 
-    !rawUrl.includes('example.com') && 
-    !rawUrl.includes('mock-portal') &&
-    !rawUrl.includes('dirId=81104&docId=') && // skip synthetic dummy links that cause 'deleted post' error
-    (rawUrl.includes('/qna/detail') || rawUrl.includes('detail.naver'));
+  // Clean title & remove synthetic AI suffixes like (테슬라 모델Y 오너 질의_92)
+  const cleanTitle = (title || '')
+    .replace(/\s*\([^)]*질의_[0-9]+\)\s*$/g, '')
+    .replace(/\s*\[[^\]]+\]\s*$/g, '')
+    .replace(/undefined/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 
-  if (isRealScrapedUrl) {
+  // 1. If rawUrl is an ALREADY VALID search list URL on Naver/Daum, preserve it
+  if (rawUrl && rawUrl.includes('search/list.naver') && rawUrl.includes('query=')) {
+    if (period && period !== 'all' && !rawUrl.includes('period=')) {
+      return `${rawUrl}&period=${period}`;
+    }
     return rawUrl;
   }
 
-  // 2. Generate clean, highly targeted EV search query
-  const cleanTitle = (title || '').replace(/undefined/g, '').replace(/\s+/g, ' ').trim();
-  const validKw = (keywords && keywords.length > 0)
-    ? keywords.find(k => k && k !== 'undefined' && !['오프라인시뮬레이션', '실시간감지', '백업크롤', '네이버실시간', '리얼로그'].includes(k))
-    : '';
+  // 2. If rawUrl is a direct link to Naver JiSiKiN detail page (/qna/detail):
+  // Check if it's a real live-scraped link without synthetic/fake indicators
+  const isSynthetic = !rawUrl || 
+    rawUrl.includes('example.com') || 
+    rawUrl.includes('mock-portal') || 
+    rawUrl.includes('dirId=81104') || 
+    rawUrl.includes('docId=494') || // synthetic docId prefix
+    rawUrl.includes('docId=undefined') || 
+    rawUrl.includes('q-scraped') ||
+    rawUrl.includes('offline');
 
-  let evQuery = '';
-  if (validKw) {
-    evQuery = validKw.includes('전기차') ? validKw : `전기차 ${validKw}`;
-  } else if (cleanTitle) {
-    const stopWords = ['질문입니다', '알아야', '선배님들', '질문', '문의', '궁금합니다', '하나요', '있나요', '때문에', '초보가', '타시는', '추천해주세요', '어디로', '연락하나요', '진짜', '효과가', '의무적으로', '실효성이', '게', '관련'];
-    const words = cleanTitle
-      .replace(/[?,.!"'()[\]]/g, ' ')
-      .split(/\s+/)
-      .filter(w => w.length >= 2 && !stopWords.includes(w));
-
-    const coreTerms = words.filter(w => w.includes('충전') || w.includes('화재') || w.includes('고장') || w.includes('소방') || w.includes('완속') || w.includes('급속') || w.includes('요금') || w.includes('설치') || w.includes('배터리'));
-    if (coreTerms.length > 0) {
-      evQuery = `전기차 ${coreTerms.slice(0, 2).join(' ')}`;
-    } else if (words.length > 0) {
-      evQuery = `전기차 ${words.slice(0, 2).join(' ')}`;
-    } else {
-      evQuery = '전기차 충전기';
-    }
-  } else {
-    evQuery = '전기차 충전기';
+  if (rawUrl && rawUrl.startsWith('http') && rawUrl.includes('/qna/detail') && !isSynthetic) {
+    return rawUrl;
   }
 
-  const encoded = encodeURIComponent(evQuery);
-  const periodStr = (period && period !== 'all') ? `&period=${period}` : '';
+  // 3. For any synthetic/mock URL or fallback item:
+  // Build a clean, precise, 100% working Naver JiSiKiN Search URL using the title!
+  let query = cleanTitle;
+
+  // Remove noise phrases that make search too narrow or conversational
+  query = query
+    .replace(/초보 오너입니다\.?/g, '')
+    .replace(/부탁\s*드립니다\.?/g, '')
+    .replace(/어떻게 하나요\??/g, '')
+    .replace(/알려주세요\??/g, '')
+    .replace(/궁금합니다\.?/g, '')
+    .replace(/있나요\??/g, '')
+    .replace(/질문드립니다\.?/g, '')
+    .replace(/답변 부탁드립니다/g, '')
+    .replace(/[?,.!"'()[\]]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // If query is long, pick the first 5 core words
+  const words = query.split(' ').filter(w => w.length >= 2);
+  if (words.length > 5) {
+    query = words.slice(0, 5).join(' ');
+  }
+
+  if (!query.includes('전기차') && !query.includes('EV') && !query.includes('충전')) {
+    query = `전기차 ${query}`;
+  }
+
+  if (!query || query.trim().length < 2) {
+    query = '전기차 충전기';
+  }
+
+  const encoded = encodeURIComponent(query);
+  const periodParam = (period && period !== 'all') ? `&period=${period}` : '';
 
   if (portal === 'naver_cafe') {
     return `https://search.naver.com/search.naver?where=article&query=${encoded}`;
@@ -58,8 +81,7 @@ export function sanitizePortalUrl(
     return `https://www.bobaedream.co.kr/search?keyword=${encoded}`;
   }
 
-  // Default Naver JiSiKiN search list (100% reliable, sorted by date, period filtered)
-  return `https://kin.naver.com/search/list.naver?query=${encoded}&sort=date${periodStr}`;
+  return `https://kin.naver.com/search/list.naver?query=${encoded}&sort=date${periodParam}`;
 }
 
 export function isWithinPeriod(scrapedAt: string | undefined, period: '1w' | '1m' | '3m' | 'all'): boolean {

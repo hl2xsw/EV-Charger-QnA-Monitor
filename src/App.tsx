@@ -225,9 +225,21 @@ export default function App() {
       const saved = localStorage.getItem('vp_questions');
       if (saved) {
         const parsed = JSON.parse(saved);
-        const hasMock = parsed.some((q: any) => q.portal === 'bobae_dream' || q.portal === 'dcinside' || q.url?.includes('bobaedream') || q.portal === 'fmkorea' || q.portal === 'inven' || q.portal === 'daum_cafe' || q.id === 'q-1');
-        if (hasMock) {
-          localStorage.setItem('vp_questions', JSON.stringify([]));
+        const hasStaleMock = parsed.some((q: any) => 
+          q.portal === 'bobae_dream' || 
+          q.portal === 'dcinside' || 
+          q.url?.includes('bobaedream') || 
+          q.portal === 'fmkorea' || 
+          q.portal === 'inven' || 
+          q.portal === 'daum_cafe' || 
+          q.id === 'q-1' ||
+          q.title?.includes('오너 질의_') ||
+          q.title?.includes('초보 오너입니다') ||
+          q.url?.includes('docId=494') ||
+          q.url?.includes('dirId=81104')
+        );
+        if (hasStaleMock) {
+          localStorage.removeItem('vp_questions');
           return [];
         }
         return parsed.map((q: any) => ({
